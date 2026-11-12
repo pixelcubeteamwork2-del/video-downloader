@@ -455,6 +455,23 @@ footer{border-top:1px solid var(--line);padding:22px 20px 28px;text-align:center
         <div class="stat"><span class="ic-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></span><div><small>Source</small><b id="sSrc">—</b></div></div>
       </div>
     </section>
+
+    <section class="card" aria-label="Transcript" id="trCard">
+      <div class="info-head"><span class="ic-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14v16H5zM9 9h6M9 13h6M9 17h3"/></svg></span>Transcript</div>
+      <p class="hint" id="trBody">Looking for captions…</p>
+      <div id="trControls" hidden>
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-top:12px">
+          <div class="sel" style="flex:1;min-width:200px"><select id="trLang" aria-label="Language"></select><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></div>
+          <label class="hint" style="display:flex;align-items:center;gap:8px;margin:0;cursor:pointer"><input type="checkbox" id="trStamps"> Include timestamps</label>
+        </div>
+        <textarea id="trText" readonly rows="10" aria-label="Transcript text" style="width:100%;margin-top:12px;padding:10px 12px;border-radius:12px;border:0;background:var(--surface-2);color:var(--fg);font:13px/1.55 inherit;resize:vertical"></textarea>
+        <div style="display:flex;gap:10px;margin-top:12px">
+          <button class="btn btn-dark" id="trCopy" disabled>Copy transcript</button>
+          <button class="btn" id="trSave" style="background:var(--surface-2);color:var(--fg)" disabled>Save as .txt</button>
+          <span class="hint" id="trCount" style="align-self:center;margin:0"></span>
+        </div>
+      </div>
+    </section>
   </div>
 
   <!-- ============ RIGHT PANEL ============ -->
@@ -789,7 +806,7 @@ footer{border-top:1px solid var(--line);padding:22px 20px 28px;text-align:center
     $('#audioGroup').hidden = !D.audio.length;
     $('#er').hidden = !D.video.length;
 
-    setupRows(); setupTabs(); setupAdvanced(); setupPlayer();
+    setupRows(); setupTabs(); setupAdvanced(); setupPlayer(); loadTranscripts();
     if (!D.canEdit) {
       $('#cutBox').hidden = true;
       $('#trimNote').hidden = false;
@@ -993,6 +1010,39 @@ footer{border-top:1px solid var(--line);padding:22px 20px 28px;text-align:center
     }));
     $('#mainDl').addEventListener('click', startDownload);
     $('#thumbFmt').addEventListener('change', syncMain);
+  }
+
+  /* ---------- transcript ---------- */
+  const trQuery = (extra = {}) => new URLSearchParams({ token: D.token, i: $('#trLang').value,
+    timestamps: $('#trStamps').checked ? '1' : '0', ...extra });
+  async function loadTranscripts(){
+    try {
+      const r = await fetch('/api/transcripts?token=' + encodeURIComponent(D.token));
+      const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Could not look for captions.');
+      if (!d.transcripts.length) { $('#trBody').textContent = 'This video has no captions to copy.'; return; }
+      $('#trLang').innerHTML = d.transcripts.map(t => `<option value="${t.index}">${esc(t.name)}${t.auto ? ' (auto-generated)' : ''}</option>`).join('');
+      $('#trBody').hidden = true; $('#trControls').hidden = false;
+      $('#trLang').addEventListener('change', showTranscript);
+      $('#trStamps').addEventListener('change', showTranscript);
+      $('#trCopy').addEventListener('click', copyTranscript);
+      $('#trSave').addEventListener('click', () => browserDownload('/api/transcript?' + trQuery({ download: '1' })));
+      showTranscript();
+    } catch (e) { $('#trBody').textContent = e.message; }
+  }
+  async function showTranscript(){
+    S.trText = ''; $('#trText').value = 'Loading…'; $('#trCount').textContent = '';
+    $('#trCopy').disabled = $('#trSave').disabled = true;
+    try {
+      const r = await fetch('/api/transcript?' + trQuery());
+      const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Could not load the transcript.');
+      S.trText = d.text; $('#trText').value = d.text; $('#trCount').textContent = d.lines + ' lines';
+      $('#trCopy').disabled = $('#trSave').disabled = false;
+    } catch (e) { $('#trText').value = e.message; }
+  }
+  async function copyTranscript(){
+    try { await navigator.clipboard.writeText(S.trText); }
+    catch (e) { $('#trText').select(); document.execCommand('copy'); }
+    toast($('#trCount').textContent, 'ok', 3000, null, { title: 'Transcript copied' });
   }
   async function loadThumbs(){
     if (S.thumbs) return;

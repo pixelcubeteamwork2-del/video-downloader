@@ -355,6 +355,7 @@ def save_session(url: str, info: dict) -> str:
         "frames": [stream_ref(f) for f in pick_frame_sources(formats)],
         "thumb_candidates": thumbnail_candidates(info),
         "thumbs": None,  # filled in by /api/thumbnails after probing real sizes
+        "transcripts": transcript_tracks(info),
     }
     return token
 
@@ -1277,6 +1278,123 @@ def download_thumbnail():
     name = f"{safe_filename(session['title'])} - thumbnail {thumb['width']}x{thumb['height']}.{ext}"
     mime = {"jpg": "image/jpeg", "png": "image/png", "webp": "image/webp"}.get(ext, "application/octet-stream")
     return send_file(BytesIO(out), mimetype=mime, as_attachment=True, download_name=name)
+
+
+# ---------- Transcripts (captions) ----------
+
+TRANSCRIPT_EXTS = ("json3", "vtt", "srt")  # formats we can read, best first
+
+
+def transcript_tracks(info: dict) -> list[dict]:
+    """Caption tracks the site offers: every uploaded one, plus auto captions in the video's own language."""
+    tracks = []
+
+    def add(lang: str, formats: list[dict], auto: bool):
+        by_ext = {f.get("ext"): f for f in formats or [] if f.get("url")}
+        pick = next((by_ext[e] for e in TRANSCRIPT_EXTS if e in by_ext), None)
+        if pick:
+            name = (by_ext[pick["ext"]].get("name") or lang)
+            tracks.append({"lang": lang, "name": name, "auto": auto, "url": pick["url"],
+                           "ext": pick["ext"], "cues": None})
+
+    for lang, formats in (info.get("subtitles") or {}).items():
+        if lang != "live_chat":
+            add(lang, formats, False)
+    auto = {k: v for k, v in (info.get("automatic_captions") or {}).items() if k != "live_chat"}
+    own = [k for k in auto if k.endswith("-orig")]
+    if not own and info.get("language") in auto:
+        own = [info["language"]]
+    if not own and len(auto) <= 3:
+        own = list(auto)
+    manual_langs = {t["lang"] for t in tracks}
+    for lang in own:
+        if lang.removesuffix("-orig") not in manual_langs:
+            add(lang, auto[lang], True)
+    return tracks
+
+
+def parse_vtt(text: str) -> list[tuple[float, str]]:
+    cues = []
+    for block in re.split(r"\r?\n\r?\n", text):
+        lines = block.strip().splitlines()
+        for i, line in enumerate(lines):
+            m = re.match(r"(?:(\d+):)?(\d{1,2}):(\d{2})[.,](\d{3})\s*-->", line.strip())
+            if not m:
+                continue
+            start = int(m[1] or 0) * 3600 + int(m[2]) * 60 + int(m[3]) + int(m[4]) / 1000
+            body = " ".join(re.sub(r"<[^>]+>", "", t).strip() for t in lines[i + 1:])
+            body = html_lib.unescape(re.sub(r"\s+", " ", body)).strip()
+            if body:
+                cues.append((start, body))
+            break
+    return cues
+
+
+def parse_json3(text: str) -> list[tuple[float, str]]:
+    cues = []
+    for ev in json.loads(text).get("events", []):
+        body = "".join(s.get("utf8", "") for s in ev.get("segs") or [])
+        body = html_lib.unescape(re.sub(r"\s+", " ", body)).strip()
+        if body:
+            cues.append(((ev.get("tStartMs") or 0) / 1000, body))
+    return cues
+
+
+def load_cues(track: dict) -> list[tuple[float, str]]:
+    if track["cues"] is None:
+        req = urllib.request.Request(track["url"], headers=THUMB_HEADERS)
+        with urllib.request.urlopen(req, timeout=20) as r:
+            raw = r.read().decode("utf-8", errors="replace")
+        cues = parse_json3(raw) if track["ext"] == "json3" else parse_vtt(raw)
+        clean = []  # rolling auto captions repeat the previous line; drop exact repeats
+        for start, body in cues:
+            if not clean or clean[-1][1] != body:
+                clean.append((start, body))
+        track["cues"] = clean
+    return track["cues"]
+
+
+def clock(seconds: float) -> str:
+    s = int(seconds)
+    h, rem = divmod(s, 3600)
+    m, sec = divmod(rem, 60)
+    return f"{h}:{m:02d}:{sec:02d}" if h else f"{m}:{sec:02d}"
+
+
+@app.get("/api/transcripts")
+def list_transcripts():
+    session = SESSIONS.get(request.args.get("token", ""))
+    if not session:
+        return jsonify(error="Session expired. Fetch the video again."), 404
+    return jsonify(transcripts=[
+        {"index": i, "lang": t["lang"], "name": t["name"], "auto": t["auto"]}
+        for i, t in enumerate(session.get("transcripts") or [])
+    ])
+
+
+@app.get("/api/transcript")
+def get_transcript():
+    """The transcript as plain text (optionally with [m:ss] stamps); download=1 sends a .txt file."""
+    session = SESSIONS.get(request.args.get("token", ""))
+    if not session:
+        return jsonify(error="Session expired. Fetch the video again."), 404
+    try:
+        track = (session.get("transcripts") or [])[int(request.args.get("i", "0"))]
+    except (ValueError, IndexError):
+        return jsonify(error="This video has no transcript."), 404
+    try:
+        cues = load_cues(track)
+    except (urllib.error.URLError, OSError, ValueError) as e:
+        return jsonify(error=f"Couldn't load the transcript: {e}"), 502
+    if not cues:
+        return jsonify(error="The transcript is empty."), 404
+    stamps = request.args.get("timestamps") == "1"
+    text = "\n".join((f"[{clock(s)}] {t}" if stamps else t) for s, t in cues)
+    if request.args.get("download") == "1":
+        name = f"{safe_filename(session['title'])} - transcript ({track['lang']}).txt"
+        return send_file(BytesIO(text.encode("utf-8")), mimetype="text/plain; charset=utf-8",
+                         as_attachment=True, download_name=name)
+    return jsonify(text=text, lines=len(cues))
 
 
 @app.get("/api/frame")
