@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Video Downloader · for creators &amp; video editors</title>
+  <meta name="description" content="Download videos and images from Facebook, YouTube, Instagram, TikTok, X, Reddit, LinkedIn and Pinterest. Edit-ready H.264, clip trimming with in/out marks, frame grabs and thumbnails.">
+{% include "_theme_head.html" %}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237c4dff'/%3E%3Cstop offset='1' stop-color='%233b6dff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='9' fill='url(%23g)'/%3E%3Cpath d='M16 8v11m0 0-4.5-4.5M16 19l4.5-4.5M9 24h14' stroke='white' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+
+  <!-- Icon sprite -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/></symbol>
+    <symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v3H9z"/></symbol>
+    <symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6" cy="7" r="2.5"/><circle cx="6" cy="17" r="2.5"/><path d="M8 8.5 19 18M8 15.5 19 6"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7H8l1.5-2h5L16 7h2.5A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.2"/></symbol>
+    <symbol id="i-film" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M7.5 5v14M16.5 5v14M3.5 9.5h4M3.5 14.5h4M16.5 9.5h4M16.5 14.5h4"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 17V6l10-2v11"/><circle cx="6.5" cy="17" r="2.5"/><circle cx="16.5" cy="15" r="2.5"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10-6.5z" fill="currentColor"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M11 7 6 12l5 5M18 7l-5 5 5 5"/></symbol>
+    <symbol id="i-fwd" viewBox="0 0 24 24"><path d="m13 7 5 5-5 5M6 7l5 5-5 5"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24"><path d="M15 7l-5 5 5 5"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path d="m9 7 5 5-5 5"/></symbol>
+    <symbol id="i-in" viewBox="0 0 24 24"><path d="M7 5v14M11 12h9M15 8l-4 4 4 4"/></symbol>
+    <symbol id="i-out" viewBox="0 0 24 24"><path d="M17 5v14M13 12H4M9 8l4 4-4 4"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m20.5 16-5-5-8.5 8"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></symbol>
+    <symbol id="i-archive" viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="5" rx="1.5"/><path d="M5 9v9.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V9M10 13h4"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></symbol>
+    <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v4.5A1.5 1.5 0 0 1 16.5 20h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 4.5v4h4"/></symbol>
+    <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M8.5 20h7M12 16.5V20"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3.5H7A1.5 1.5 0 0 0 5.5 5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M14 3.5V8h4.5"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 13.5a7.6 7.6 0 0 0 0-3l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.5A7.4 7.4 0 0 0 7 6.5l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 3l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 2.6 1.5l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 2.6-1.5l2.4 1 2-3.4z"/></symbol>
+    <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M7 17 17 7M8.5 7H17v8.5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-waveform" viewBox="0 0 24 24"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 7v10M21 12h0"/></symbol>
+    <symbol id="i-nowm" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="m4 4 16 16"/></symbol>
+    <symbol id="i-gallery" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></symbol>
+  </svg>
+
+  <header class="topbar">
+    <nav class="topbar-inner nav-pill" aria-label="Main">
+      <a class="brand" href="/">
+        <span class="brand-mark"><svg class="icon"><use href="#i-download"/></svg></span>
+        <span class="brand-text">
+          <span class="brand-name">Video Downloader</span>
+          <span class="brand-sub">for creators &amp; video editors</span>
+        </span>
+      </a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="#sites">Sites</a>
+        <a href="#faq">FAQ</a>
+      </div>
+      <div class="topbar-meta">
+        {% if has_ffmpeg %}
+        <span class="chip ok" title="ffmpeg found: HD, editor-ready H.264, trimming and frame grabs are on"><span class="dot ok"></span><span class="chip-label">Editor tools ready</span></span>
+        {% else %}
+        <span class="chip warn" title="Install ffmpeg for HD, H.264 conversion, trimming and frame grabs"><span class="dot warn"></span><span class="chip-label">ffmpeg missing</span></span>
+        {% endif %}
+        <button type="button" id="open-settings" class="btn btn-soft btn-sm" title="Login for private posts">
+          <svg class="icon"><use href="#i-lock"/></svg><span id="login-label">Login: off</span>
+        </button>
+{% include "_theme_toggle.html" %}
+        <a href="#top" id="nav-start" class="btn btn-primary btn-pill nav-cta">Start now<span class="arrow-dot"><svg class="icon"><use href="#i-arrow"/></svg></span></a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="shell">
+    <section class="hero" id="top">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <h1>Your All-in-One<br><span class="grad">Video Downloader</span> for Creators</h1>
+      <p class="lead">Save videos, clips, frames and photos from 8 platforms as edit-ready files that open straight in Premiere Pro, DaVinci Resolve and CapCut.</p>
+      <ul class="checks" aria-label="Highlights">
+        <li><span class="check"><svg class="icon"><use href="#i-check"/></svg></span>No sign-up required</li>
+        <li><span class="check"><svg class="icon"><use href="#i-check"/></svg></span>No TikTok watermark</li>
+        <li><span class="check"><svg class="icon"><use href="#i-check"/></svg></span>Up to 4K, edit-ready</li>
+      </ul>
+
+      <form id="url-form" class="search">
+        <svg class="icon search-icon"><use href="#i-link"/></svg>
+        <input id="url" type="url" placeholder="Paste a video, reel, short or post link…" required autocomplete="off" aria-label="Video or post link">
+        <button type="button" id="clear-url" class="clear-btn" title="Clear" aria-label="Clear link" hidden><svg class="icon"><use href="#i-x"/></svg></button>
+        <span class="search-sep" aria-hidden="true"></span>
+        <button type="button" id="paste" class="btn btn-ghost" title="Paste from clipboard">
+          <svg class="icon"><use href="#i-clipboard"/></svg><span class="hide-sm">Paste</span>
+        </button>
+        <button type="submit" id="fetch" class="btn btn-primary btn-pill">Fetch Video<span class="arrow-dot"><svg class="icon"><use href="#i-arrow"/></svg></span></button>
+      </form>
+
+      <div class="hero-actions">
+        <button type="button" id="try-example" class="btn btn-lavender btn-pill">Try an example</button>
+        <a href="#how" class="btn btn-lavender btn-pill">See how it works</a>
+      </div>
+
+      <div id="status" class="status" hidden></div>
+    </section>
+
+    <div id="result" class="workspace" hidden>
+      <!-- Left: clip header, player, trim range -->
+      <section class="stage">
+        <div class="glass ws-card">
+          <header class="clip-head">
+            <span id="site-logo" class="site-logo" aria-hidden="true"></span>
+            <div class="meta-text">
+              <span id="site" class="clip-site"></span>
+              <h2 id="title"></h2>
+              <p class="clip-meta"><span id="uploader"></span><span id="meta-duration"></span><span id="meta-res"></span></p>
+            </div>
+            <div class="clip-actions">
+              <button type="button" id="copy-link" class="icon-btn" title="Copy link"><svg class="icon"><use href="#i-link"/></svg></button>
+              <a id="open-source" class="icon-btn" href="#" target="_blank" rel="noopener" title="Open original post"><svg class="icon"><use href="#i-external"/></svg></a>
+            </div>
+          </header>
+
+          <div class="player-wrap">
+            <video id="player" controls preload="metadata" playsinline></video>
+            <p id="no-preview" class="no-preview" hidden>Preview isn't available for this video. You can still type start and end times below.</p>
+          </div>
+
+          <section class="trim needs-ffmpeg" aria-labelledby="trim-title">
+            <input type="checkbox" id="trim-on" hidden>
+            <header class="trim-head">
+              <span class="panel-icon"><svg class="icon"><use href="#i-scissors"/></svg></span>
+              <h3 id="trim-title">Trim Clip Range</h3>
+              <span class="help" title="Drag the handles, type times, or press I and O while the video plays. Leave the full range to download the whole video.">?</span>
+              <span class="trim-selected">Selected: <b id="clip-len">0.00 seconds</b></span>
+            </header>
+
+            <div id="timeline" class="strip" title="Click to jump · drag the handles to set the clip">
+              <canvas id="strip-canvas" class="strip-canvas" aria-hidden="true"></canvas>
+              <div id="range" class="range">
+                <button type="button" id="handle-start" class="handle start" aria-label="Clip start"><span class="bubble" id="bubble-start">0:00.00</span></button>
+                <button type="button" id="handle-end" class="handle end" aria-label="Clip end"><span class="bubble" id="bubble-end">0:00.00</span></button>
+              </div>
+              <div id="playhead" class="playhead"></div>
+            </div>
+            <div class="strip-scale"><span>0:00.00</span><span id="strip-total">0:00.00</span></div>
+
+            <div class="trim-fields">
+              <div class="field">
+                <label for="start">Start time</label>
+                <div class="time-input">
+                  <button type="button" id="set-start" class="time-btn" title="Set start to the playhead (I)"><svg class="icon"><use href="#i-clock"/></svg></button>
+                  <input id="start" class="time" value="0:00" spellcheck="false">
+                </div>
+              </div>
+              <div class="field">
+                <label for="end">End time</label>
+                <div class="time-input">
+                  <button type="button" id="set-end" class="time-btn" title="Set end to the playhead (O)"><svg class="icon"><use href="#i-clock"/></svg></button>
+                  <input id="end" class="time" spellcheck="false">
+                </div>
+              </div>
+              <div class="field">
+                <label for="clip-dur">Duration</label>
+                <input id="clip-dur" class="time readonly" readonly tabindex="-1">
+              </div>
+              <button type="button" id="play-clip" class="btn btn-soft trim-btn"><svg class="icon"><use href="#i-play"/></svg>Preview Clip</button>
+              <button type="button" id="trim-reset" class="btn btn-outline trim-btn"><svg class="icon"><use href="#i-reset"/></svg>Reset</button>
+            </div>
+          </section>
+        </div>
+
+        <section class="glass ws-card info-card" aria-labelledby="info-title">
+          <header class="info-head">
+            <span class="info-i">i</span>
+            <h3 id="info-title">Video Information</h3>
+          </header>
+          <dl class="info-grid">
+            <div><span class="info-icon"><svg class="icon"><use href="#i-clock"/></svg></span><dt>Duration</dt><dd id="info-duration">–</dd></div>
+            <div><span class="info-icon"><svg class="icon"><use href="#i-monitor"/></svg></span><dt>Resolution</dt><dd><span id="info-res">–</span> <em id="info-hd" class="hd-badge" hidden>HD</em></dd></div>
+            <div><span class="info-icon"><svg class="icon"><use href="#i-file"/></svg></span><dt>File Size (Original)</dt><dd id="info-size">–</dd></div>
+            <div><span class="info-icon"><svg class="icon"><use href="#i-link"/></svg></span><dt>Source</dt><dd><a id="info-source" href="#" target="_blank" rel="noopener">–</a></dd></div>
+          </dl>
+        </section>
+      </section>
+
+      <!-- Right: download / frame grab / thumbnail -->
+      <aside class="inspector">
+        <section class="glass ws-card inspector-card">
+          <div class="tabs" role="tablist" aria-label="Tools">
+            <button type="button" class="tab" role="tab" id="tab-export" aria-controls="panel-export" aria-selected="true"><svg class="icon"><use href="#i-download"/></svg>Download</button>
+            <button type="button" class="tab needs-ffmpeg" role="tab" id="tab-frame" aria-controls="panel-frame" aria-selected="false" tabindex="-1"><svg class="icon"><use href="#i-camera"/></svg>Frame Grab</button>
+            <button type="button" class="tab" role="tab" id="tab-thumb" aria-controls="panel-thumb" aria-selected="false" tabindex="-1"><svg class="icon"><use href="#i-image"/></svg>Thumbnail</button>
+          </div>
+
+          <div class="tabpanel" role="tabpanel" id="panel-export" aria-labelledby="tab-export">
+            <h3 id="dl-heading" class="tp-title">Download Video</h3>
+            <p class="tp-sub">Choose your preferred quality and format.</p>
+            <div id="options" class="q-list" role="radiogroup" aria-label="Quality"></div>
+
+            <details class="advanced" open>
+              <summary><svg class="icon"><use href="#i-gear"/></svg>Advanced Options<svg class="icon chev"><use href="#i-chevron"/></svg></summary>
+              <div class="adv-grid">
+                <label class="adv-field">
+                  <span>Format</span>
+                  <select id="fmt-display" disabled><option id="fmt-display-text">MP4 (H.264)</option></select>
+                </label>
+                <label class="adv-field">
+                  <span>Clip cut</span>
+                  <select id="cut-mode">
+                    <option value="fast">Fast (lossless)</option>
+                    <option value="exact">Frame-exact</option>
+                  </select>
+                </label>
+              </div>
+              <p class="adv-note">Frame-exact re-encodes on your <span id="encoder">computer</span> so the clip starts on the exact frame.</p>
+              <label class="editor-mode" title="Premiere Pro, DaVinci Resolve, Final Cut and CapCut need H.264. YouTube's best qualities use AV1/VP9, which they can't open.">
+                <span class="em-icon"><svg class="icon"><use href="#i-target"/></svg></span>
+                <span class="editor-mode-text">
+                  <b>Edit-ready file (H.264 + AAC)</b>
+                  <small id="compat-hint">Opens in Premiere Pro, DaVinci Resolve, CapCut and others.</small>
+                </span>
+                <span class="switch">
+                  <input type="checkbox" id="compat-on" checked>
+                  <span class="switch-track"><span class="switch-thumb"></span></span>
+                </span>
+              </label>
+            </details>
+
+            <button type="button" id="dl-main" class="btn btn-primary dl-main">
+              <svg class="icon"><use href="#i-download"/></svg><span id="dl-main-label">Download</span><span id="dl-main-size" class="dl-size"></span>
+            </button>
+          </div>
+
+          <div class="tabpanel" role="tabpanel" id="panel-frame" aria-labelledby="tab-frame" hidden>
+            <h3 class="tp-title">Frame Grab</h3>
+            <p class="tp-sub">Pause on a frame, then export it in full resolution<span id="frame-size"></span>.</p>
+            <div class="step-row" id="step-row">
+              <div class="step-group">
+                <button type="button" class="btn btn-icon" data-step="-1" title="Back 1 second (J)"><svg class="icon"><use href="#i-back"/></svg></button>
+                <button type="button" class="btn btn-icon" data-frames="-1" title="Back 1 frame (,)"><svg class="icon"><use href="#i-prev"/></svg></button>
+              </div>
+              <span id="now" class="timecode" title="Playhead">0:00.00</span>
+              <div class="step-group">
+                <button type="button" class="btn btn-icon" data-frames="1" title="Forward 1 frame (.)"><svg class="icon"><use href="#i-next"/></svg></button>
+                <button type="button" class="btn btn-icon" data-step="1" title="Forward 1 second (L)"><svg class="icon"><use href="#i-fwd"/></svg></button>
+              </div>
+            </div>
+            <div class="snap-row">
+              <button type="button" id="snap-png" class="btn btn-soft"><svg class="icon"><use href="#i-image"/></svg><span>PNG<small>Lossless</small></span></button>
+              <button type="button" id="snap-jpg" class="btn btn-soft"><svg class="icon"><use href="#i-image"/></svg><span>JPG<small>Max quality</small></span></button>
+            </div>
+            <p class="kbd-hint">
+              <span><kbd>Space</kbd> play</span><span><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> back / pause / fwd</span>
+              <span><kbd>,</kbd><kbd>.</kbd> frame</span><span><kbd>I</kbd><kbd>O</kbd> mark in / out</span>
+            </p>
+          </div>
+
+          <div class="tabpanel" role="tabpanel" id="panel-thumb" aria-labelledby="tab-thumb" hidden>
+            <header class="tp-head" id="thumb-panel">
+              <div>
+                <h3 class="tp-title">Thumbnail</h3>
+                <p class="tp-sub">Every real size the site offers.</p>
+              </div>
+              <div class="mini-seg" role="radiogroup" aria-label="Thumbnail format">
+                <label title="Keep the file exactly as the site serves it"><input type="radio" name="thumb-fmt" value="original" checked><span>Original</span></label>
+                <label title="Convert to JPG at maximum quality"><input type="radio" name="thumb-fmt" value="jpg"><span>JPG</span></label>
+                <label title="Convert to lossless PNG"><input type="radio" name="thumb-fmt" value="png"><span>PNG</span></label>
+              </div>
+            </header>
+            <div id="thumb-list" class="options"></div>
+            <p id="thumb-note" class="panel-note" hidden></p>
+          </div>
+        </section>
+        <p id="no-edit" class="note" hidden>Trimming, frame grabs and H.264 conversion need ffmpeg, which wasn't found.</p>
+      </aside>
+    </div>
+
+    <section id="gallery" class="panel gallery" hidden>
+      <header class="gallery-head">
+        <div class="gallery-meta">
+          <span id="g-site" class="badge"></span>
+          <h2 id="g-title">Media in this post</h2>
+          <p id="g-uploader" class="muted"></p>
+        </div>
+        <div class="gallery-actions">
+          <span id="g-count" class="muted"></span>
+          <button type="button" id="g-zip" class="btn btn-primary"><svg class="icon"><use href="#i-archive"/></svg>Download all (ZIP)</button>
+        </div>
+      </header>
+      <div id="g-grid" class="media-grid"></div>
+      <p id="g-note" class="panel-note" hidden></p>
+    </section>
+
+    <div class="ws-toolbar">
+      <a href="/" id="new-download" class="btn btn-lavender btn-pill"><svg class="icon"><use href="#i-arrow-left"/></svg>Download another video</a>
+    </div>
+
+    <div id="landing" class="landing">
+      <!-- Product preview with floating tags -->
+      <section class="preview-stage" aria-hidden="true">
+        <div class="preview-glow"></div>
+        <div class="mock">
+          <div class="mock-bar"><i></i><i></i><i></i><span class="mock-url">127.0.0.1:5000</span></div>
+          <div class="mock-body">
+            <div class="mock-monitor">
+              <div class="mock-title"><b class="mock-badge">YouTube</b><span>Behind the scenes — Studio vlog #12</span></div>
+              <div class="mock-video"><span class="mock-play"><svg class="icon"><use href="#i-play"/></svg></span></div>
+              <div class="mock-timeline"><i class="mock-range"></i><i class="mock-head"></i></div>
+              <div class="mock-controls"><span></span><b>0:01:24.12</b><span></span></div>
+            </div>
+            <div class="mock-side">
+              <div class="mock-tabs"><b>Export</b><span>Frame</span><span>Thumbnail</span></div>
+              <div class="mock-switch"><i></i><span><b>Edit-ready</b>H.264 + AAC</span></div>
+              <div class="mock-row best"><svg class="icon"><use href="#i-film"/></svg>2160p 4K<em>Best</em></div>
+              <div class="mock-row"><svg class="icon"><use href="#i-film"/></svg>1080p HD</div>
+              <div class="mock-row"><svg class="icon"><use href="#i-film"/></svg>720p HD</div>
+              <div class="mock-row audio"><svg class="icon"><use href="#i-music"/></svg>Audio MP3</div>
+            </div>
+          </div>
+        </div>
+        <span class="float-chip fc-1"><span class="dot yt"></span>YouTube 4K</span>
+        <span class="float-chip fc-2"><span class="dot tt"></span>TikTok · no watermark</span>
+        <span class="float-chip fc-3"><span class="dot ok"></span>Premiere-ready</span>
+        <span class="float-chip fc-4"><span class="dot ig"></span>Instagram carousel</span>
+        <span class="float-chip fc-5"><span class="dot x"></span>Frame grab PNG</span>
+        <span class="float-chip fc-6"><span class="dot rd"></span>MP3 / M4A</span>
+      </section>
+
+      <!-- Platforms strip -->
+      <section class="logos" id="sites">
+        <p class="logos-title">Works with the platforms<br><span class="grad">you create on</span></p>
+        <div class="marquee">
+          <ul class="marquee-track">
+            <li><span class="dot yt"></span>YouTube</li><li><span class="dot tt"></span>TikTok</li>
+            <li><span class="dot ig"></span>Instagram</li><li><span class="dot fb"></span>Facebook</li>
+            <li><span class="dot x"></span>X (Twitter)</li><li><span class="dot rd"></span>Reddit</li>
+            <li><span class="dot li"></span>LinkedIn</li><li><span class="dot pin"></span>Pinterest</li>
+            <li aria-hidden="true"><span class="dot yt"></span>YouTube</li><li aria-hidden="true"><span class="dot tt"></span>TikTok</li>
+            <li aria-hidden="true"><span class="dot ig"></span>Instagram</li><li aria-hidden="true"><span class="dot fb"></span>Facebook</li>
+            <li aria-hidden="true"><span class="dot x"></span>X (Twitter)</li><li aria-hidden="true"><span class="dot rd"></span>Reddit</li>
+            <li aria-hidden="true"><span class="dot li"></span>LinkedIn</li><li aria-hidden="true"><span class="dot pin"></span>Pinterest</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Features -->
+      <section class="section" id="features">
+        <h2 class="section-title">Creator-Ready Features That<br>Streamline <span class="grad">Your Workflow</span></h2>
+        <p class="section-lead">Everything you need to bring footage, stills and sound from the web into your edit, without converters or extra apps.</p>
+        <ul class="feature-grid">
+          <li class="glass"><span class="f-icon"><svg class="icon"><use href="#i-layers"/></svg></span><b>Edit-ready H.264</b><span>Files open straight in Premiere Pro, DaVinci Resolve, Final Cut and CapCut. 4K is converted on your GPU.</span></li>
+          <li class="glass"><span class="f-icon"><svg class="icon"><use href="#i-scissors"/></svg></span><b>Clip with I / O marks</b><span>Set in and out points with the same shortcuts as your editor. Lossless fast cut or frame-exact.</span></li>
+          <li class="glass"><span class="f-icon"><svg class="icon"><use href="#i-camera"/></svg></span><b>Full-res frame grabs</b><span>Export any frame as a lossless PNG or max-quality JPG, perfect for thumbnails and stills.</span></li>
+          <li class="glass"><span class="f-icon"><svg class="icon"><use href="#i-nowm"/></svg></span><b>No TikTok watermark</b><span>Saves TikTok's clean player copy in 1080p, with no logo or username burned in.</span></li>
+          <li class="glass"><span class="f-icon"><svg class="icon"><use href="#i-gallery"/></svg></span><b>Photos &amp; carousels</b><span>Every photo in a post at its original size, one by one or all together as a ZIP.</span></li>
+          <li class="glass"><span class="f-icon"><svg class="icon"><use href="#i-waveform"/></svg></span><b>Audio for your edits</b><span>Pull the sound as MP3 or the original M4A for music beds, voice-overs and sound design.</span></li>
+        </ul>
+      </section>
+
+      <!-- How it works -->
+      <section class="section" id="how">
+        <h2 class="section-title">From Link to Timeline in<br><span class="grad">Three Simple Steps</span></h2>
+        <ol class="how-grid">
+          <li class="glass"><span class="how-num">01</span><b>Paste a link</b><span>Copy the link of any public video, reel, short or post and paste it above.</span></li>
+          <li class="glass"><span class="how-num">02</span><b>Preview &amp; mark</b><span>Scrub the preview, step frame by frame, and press <kbd>I</kbd> / <kbd>O</kbd> to set your clip.</span></li>
+          <li class="glass"><span class="how-num">03</span><b>Export edit-ready</b><span>Pick a quality. The file lands in your browser's downloads, ready to drop into your timeline.</span></li>
+        </ol>
+      </section>
+
+      <!-- FAQ -->
+      <section class="section" id="faq">
+        <h2 class="section-title">Questions <span class="grad">Creators Ask</span></h2>
+        <div class="faq">
+          <details class="glass"><summary>Will the files open in Premiere Pro?</summary><p>Yes. With <b>Edit-ready (H.264 + AAC)</b> turned on (the default), every video is saved in a format Premiere Pro, DaVinci Resolve, Final Cut and CapCut open directly. YouTube's AV1/VP9 and TikTok's H.265 are converted for you.</p></details>
+          <details class="glass"><summary>Do TikTok downloads have a watermark?</summary><p>No. The app saves TikTok's clean player copy, without the logo or username.</p></details>
+          <details class="glass"><summary>Why does a download sit at 0 B for a moment?</summary><p>For HD YouTube, conversions, clips and MP3s the file is prepared first. It shows in your browser's downloads right away and finishes as soon as it's ready.</p></details>
+          <details class="glass"><summary>Can I download private or login-only posts?</summary><p>Turn on <b>Login</b> in the menu bar to use your own browser login (or a cookies.txt file). It stays on your computer. Only download content you have the right to use.</p></details>
+          <details class="glass"><summary>Is it free? Do I need an account?</summary><p>It's free, there's no sign-up, and it runs on your own computer. See our <a href="{{ url_for('privacy_page') }}">Privacy Policy</a>.</p></details>
+        </div>
+      </section>
+
+      <section class="cta glass">
+        <h2>Ready to grab your next clip?</h2>
+        <p>Paste a link and get an edit-ready file in seconds.</p>
+        <a href="#top" class="btn btn-primary btn-pill" id="cta-start">Start downloading<span class="arrow-dot"><svg class="icon"><use href="#i-arrow"/></svg></span></a>
+      </section>
+    </div>
+
+    {% if not has_ffmpeg %}
+    <p class="note">ffmpeg was not found, so only formats that already include audio are offered. Install ffmpeg for HD, editor-ready H.264, trimming and frame grabs.</p>
+    {% endif %}
+  </main>
+
+  <dialog id="settings" class="dialog" aria-labelledby="settings-title">
+    <div class="dialog-card">
+      <header class="dialog-head">
+        <span class="panel-icon"><svg class="icon"><use href="#i-lock"/></svg></span>
+        <h3 id="settings-title">Login for private posts</h3>
+        <button type="button" id="close-settings" class="btn btn-ghost btn-sm" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button>
+      </header>
+      <p class="dialog-text">Reddit, and some Instagram, X and LinkedIn posts, are only shown to logged-in users. Turn this on to let the app use <b>your own</b> login. It never leaves this computer except to talk to those sites. Leave it off if you only need public posts.</p>
+
+      <div class="setting">
+        <label for="browser-select">Use the login from my browser</label>
+        <select id="browser-select">
+          <option value="">Off</option>
+          <option value="firefox">Firefox (works best)</option>
+          <option value="chrome">Chrome</option>
+          <option value="edge">Microsoft Edge</option>
+          <option value="brave">Brave</option>
+          <option value="opera">Opera</option>
+          <option value="vivaldi">Vivaldi</option>
+          <option value="chromium">Chromium</option>
+        </select>
+        <p class="hint">Log in to the site in that browser first. Chrome and Edge often lock their login data while open; if that fails, close the browser, use Firefox, or use a cookies.txt file below.</p>
+      </div>
+
+      <div class="setting">
+        <label for="cookie-file">Or use a cookies.txt file</label>
+        <div class="file-row">
+          <label class="btn btn-soft btn-sm file-pick"><input type="file" id="cookie-file" accept=".txt,text/plain">Choose file…</label>
+          <span id="cookie-state" class="muted">No file</span>
+          <button type="button" id="cookie-remove" class="btn btn-ghost btn-sm" hidden>Remove</button>
+        </div>
+        <p class="hint">Export it while logged in, using a browser extension such as "Get cookies.txt LOCALLY". A file takes priority over the browser setting. Treat it like a password.</p>
+      </div>
+
+      <p id="settings-status" class="panel-note" hidden></p>
+    </div>
+  </dialog>
+
+{% include "_footer.html" %}
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+{% extends "page.html" %}
+{% block content %}
+<p class="legal-lead">These Terms of Service ("Terms") explain the rules for using Video Downloader ("the app", "we", "us"). By using the app, you agree to these Terms. If you don't agree, please don't use it.</p>
+
+<section>
+  <h2>1. The service</h2>
+  <p>Video Downloader is a tool that runs on your computer and helps you save publicly available videos, images and audio from supported websites for your own personal, non-commercial use. It is provided free of charge.</p>
+</section>
+
+<section>
+  <h2>2. Your responsibilities</h2>
+  <p>You are solely responsible for how you use the app and for the content you download. You agree that you will:</p>
+  <ul>
+    <li>only download content you own, content you have the right or permission to download, or content you are legally allowed to keep for personal use;</li>
+    <li>respect copyright, trademark, privacy and other rights of creators and other people;</li>
+    <li>follow the terms of service of each website you download from;</li>
+    <li>not use the app to download private content without permission, or to get around paywalls, subscriptions or other access restrictions;</li>
+    <li>not re-upload, sell, redistribute or publicly share downloaded content without the owner's permission, unless the law allows it.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>3. Prohibited use</h2>
+  <p>You may not use the app for anything illegal, to infringe anyone's rights, to harass or harm others, or to collect personal information about other people. You may not use it for large-scale or automated scraping of websites.</p>
+</section>
+
+<section>
+  <h2>4. Third-party websites and content</h2>
+  <p>The app works with websites we do not own or control. We are not responsible for their content, availability or policies, and they may change in ways that stop the app from working. All content you download belongs to its respective owners; we claim no ownership of it.</p>
+</section>
+
+<section>
+  <h2>5. No warranty</h2>
+  <p>The app is provided "as is" and "as available", without warranties of any kind, whether express or implied, including fitness for a particular purpose. We don't guarantee that it will always work, be error-free, or support any particular website or video.</p>
+</section>
+
+<section>
+  <h2>6. Limitation of liability</h2>
+  <p>To the fullest extent allowed by law, we are not liable for any direct, indirect, incidental or consequential damages arising from your use of the app, including loss of data, damage to your device, or any claims made against you because of content you downloaded.</p>
+</section>
+
+<section>
+  <h2>7. Open-source components</h2>
+  <p>The app is built with open-source software, including yt-dlp, gallery-dl, ffmpeg, Flask and Pillow, each used under its own license.</p>
+</section>
+
+<section>
+  <h2>8. Changes to these Terms</h2>
+  <p>We may update these Terms from time to time. Changes take effect when they are posted on this page. Continuing to use the app after a change means you accept the updated Terms.</p>
+</section>
+
+<p class="legal-see-also">See also our <a href="{{ url_for('privacy_page') }}">Privacy Policy</a> and <a href="{{ url_for('disclaimer_page') }}">Disclaimer</a>.</p>
+{% endblock %}

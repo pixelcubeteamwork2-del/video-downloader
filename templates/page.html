@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page_title }} · Video Downloader</title>
+  <meta name="description" content="{{ page_description }}">
+{% include "_theme_head.html" %}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232563eb'/%3E%3Cpath d='M16 8v11m0 0-4.5-4.5M16 19l4.5-4.5M9 24h14' stroke='white' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="{{ url_for('index') }}">
+        <span class="brand-mark">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14"/></svg>
+        </span>
+        <span class="brand-text">
+          <span class="brand-name">Video Downloader</span>
+          <span class="brand-sub">for creators &amp; video editors</span>
+        </span>
+      </a>
+      <div class="topbar-meta">
+        <a class="btn btn-soft btn-sm" href="{{ url_for('index') }}">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7l-5 5 5 5"/></svg>Back to downloader
+        </a>
+{% include "_theme_toggle.html" %}
+      </div>
+    </div>
+  </header>
+
+  <main class="shell legal-shell">
+    <article class="legal glass">
+      <header class="legal-head">
+        <h1>{{ page_title }}</h1>
+        <p class="legal-updated">Last updated: {{ last_updated }}</p>
+      </header>
+      {% block content %}{% endblock %}
+      {% if contact_email %}
+      <section>
+        <h2>Contact</h2>
+        <p>Questions about this page? Email <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.</p>
+      </section>
+      {% endif %}
+    </article>
+  </main>
+
+{% include "_footer.html" %}
+</body>
+</html>

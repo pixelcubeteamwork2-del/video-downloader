@@ -1,0 +1,1274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Download — Video Downloader</title>
+<meta name="description" content="Pick a quality, trim your clip and download an edit-ready file.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#ffffff; --fg:#111111; --muted:#8a8a8a; --muted-2:#5c5c5c;
+  --surface:#f4f4f4; --surface-2:#ebebeb; --line:#e6e6e6; --card:#ffffff;
+  --inverse:#111111; --on-inverse:#ffffff;
+  --font:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0b0b0b; --fg:#f2f2f2; --muted:#8d8d8d; --muted-2:#b3b3b3;
+    --surface:#161616; --surface-2:#222222; --line:#262626; --card:#0f0f0f;
+    --inverse:#f2f2f2; --on-inverse:#0b0b0b; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0b0b0b; --fg:#f2f2f2; --muted:#8d8d8d; --muted-2:#b3b3b3;
+  --surface:#161616; --surface-2:#222222; --line:#262626; --card:#0f0f0f;
+  --inverse:#f2f2f2; --on-inverse:#0b0b0b; color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:var(--font);background:var(--bg);color:var(--fg);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+button,input,select{font:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer}
+svg{display:block}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+:focus-visible{outline:2px solid var(--fg);outline-offset:2px;border-radius:8px}
+.mono{font-family:var(--mono)}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:40px;padding:0 16px;border-radius:999px;font-size:13.5px;font-weight:600;white-space:nowrap;transition:transform .15s,opacity .15s,background .15s}
+.btn:active{transform:scale(.97)}
+.btn svg{width:15px;height:15px}
+.btn-dark{background:var(--inverse);color:var(--on-inverse)}
+.btn-dark:hover{opacity:.86}
+.btn-gray{background:var(--surface);color:var(--fg)}
+.btn-gray:hover{background:var(--surface-2)}
+.btn-white{background:var(--card);border:1px solid var(--line)}
+.btn-white:hover{background:var(--surface-2)}
+.btn-ghost{color:var(--muted-2)}
+.btn-ghost:hover{color:var(--fg);background:var(--surface-2)}
+.btn-sm{height:32px;padding:0 13px;font-size:12.5px}
+.icon-btn{width:34px;height:34px;border-radius:999px;display:grid;place-items:center;color:var(--muted-2);flex:none}
+.icon-btn:hover{background:var(--surface-2);color:var(--fg)}
+.icon-btn svg{width:16px;height:16px}
+.icon-btn.white{background:var(--card);border:1px solid var(--line)}
+
+/* nav */
+.nav{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:saturate(1.6) blur(14px);-webkit-backdrop-filter:saturate(1.6) blur(14px);border-bottom:1px solid var(--line)}
+.nav-in{max-width:1120px;margin:0 auto;padding:0 20px;height:60px;display:flex;align-items:center;gap:28px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.02em;font-size:15px}
+.brand-mark{width:28px;height:28px;border-radius:8px;background:var(--inverse);color:var(--on-inverse);display:grid;place-items:center}
+.brand-mark svg{width:15px;height:15px}
+.nav-links{display:flex;gap:22px;font-size:13px;font-weight:500;color:var(--muted-2)}
+.nav-links a:hover{color:var(--fg)}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.status{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;background:var(--surface);font-size:12px;font-weight:500;color:var(--muted-2)}
+.dot{width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 3px color-mix(in srgb,#22c55e 20%,transparent)}
+
+/* layout */
+.app{max-width:1120px;margin:0 auto;padding:24px 20px 24px;display:grid;grid-template-columns:minmax(0,1fr) 384px;gap:14px;align-items:start}
+.col{display:flex;flex-direction:column;gap:14px;min-width:0}
+.card{background:var(--surface);border-radius:24px;padding:18px}
+
+/* source header */
+.src{display:flex;align-items:flex-start;gap:12px}
+.src-ic{width:42px;height:42px;border-radius:12px;background:#ff3b30;display:grid;place-items:center;flex:none}
+.src-ic svg{width:17px;height:17px;margin-left:2px}
+.src-txt{flex:1;min-width:0}
+.platform{font-size:12px;font-weight:600;color:var(--muted)}
+.title{font-size:17px;font-weight:700;letter-spacing:-.02em;line-height:1.25;margin-top:1px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.meta{font-size:12px;color:var(--muted);margin-top:3px;display:flex;flex-wrap:wrap;gap:4px 8px}
+.meta i{font-style:normal;opacity:.5}
+.src-actions{display:flex;gap:6px}
+
+/* player */
+.player{position:relative;margin-top:16px;aspect-ratio:16/9;border-radius:16px;overflow:hidden;background:
+  radial-gradient(120% 90% at 82% 100%,#ff8a5b 0%,transparent 55%),radial-gradient(90% 80% at 10% 0%,#3a7bd5 0%,transparent 60%),linear-gradient(160deg,#141832,#2b2140 60%,#4a2a3a)}
+.player video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:transparent}
+.player.has-src{background:#000}
+.big-play{position:absolute;inset:0;margin:auto;width:60px;height:60px;border-radius:50%;background:#fff;display:grid;place-items:center;box-shadow:0 8px 24px rgba(0,0,0,.25);transition:transform .15s,opacity .2s;z-index:2}
+.big-play:hover{transform:scale(1.06)}
+.big-play svg{width:20px;height:20px;margin-left:3px;color:#111}
+.player.playing .big-play{opacity:0;pointer-events:none}
+.p-badge{position:absolute;top:12px;left:12px;z-index:2;font-size:10.5px;font-weight:700;color:#fff;background:rgba(0,0,0,.45);padding:4px 8px;border-radius:7px;letter-spacing:.03em;backdrop-filter:blur(6px)}
+.p-q{position:absolute;top:12px;right:12px;z-index:3;font:600 11px/1 var(--sans,inherit);color:#fff;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.18);padding:5px 8px;border-radius:7px;backdrop-filter:blur(6px);cursor:pointer}
+.p-q option{color:#000;background:#fff}
+.p-time{position:absolute;bottom:12px;right:12px;z-index:2;font-family:var(--mono);font-size:11px;color:#fff;background:rgba(0,0,0,.5);padding:4px 8px;border-radius:7px}
+
+/* trim */
+.trim-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:20px}
+.trim-head .lbl{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px}
+.ic-tile{width:28px;height:28px;border-radius:8px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;flex:none}
+.ic-tile svg{width:14px;height:14px}
+.help{width:18px;height:18px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;font-size:10.5px;font-weight:700;color:var(--muted);cursor:help;position:relative}
+.help:hover::after,.help:focus::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%);width:220px;background:#1a1a1a;color:#fff;font-size:11.5px;font-weight:500;line-height:1.4;padding:8px 10px;border-radius:10px;z-index:10;text-align:left}
+.sel-info{font-size:12px;color:var(--muted)}
+.sel-info b{color:var(--fg);font-weight:600}
+
+.tl-wrap{margin-top:34px;position:relative;touch-action:none;user-select:none;-webkit-user-select:none}
+.tl{position:relative;height:52px;border-radius:12px;overflow:hidden;background:var(--card);border:1px solid var(--line);display:flex}
+.tl .frame{flex:1;border-right:1px solid rgba(0,0,0,.08)}
+.shade{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--bg) 70%,transparent);pointer-events:none}
+.range{position:absolute;top:-2px;bottom:-2px;border:2px solid var(--fg);border-radius:12px;pointer-events:none}
+.handle{position:absolute;top:-2px;bottom:-2px;width:18px;margin-left:-9px;cursor:ew-resize;display:grid;place-items:center;z-index:3}
+.handle::before{content:"";width:12px;height:100%;border-radius:6px;background:var(--fg);box-shadow:0 2px 6px rgba(0,0,0,.2)}
+.handle::after{content:"";position:absolute;width:2px;height:16px;border-radius:2px;background:var(--on-inverse)}
+.handle .tag{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:10.5px;font-weight:500;background:var(--inverse);color:var(--on-inverse);padding:3px 7px;border-radius:6px;white-space:nowrap;pointer-events:none}
+.handle:focus-visible{outline:none}
+.handle:focus-visible::before{box-shadow:0 0 0 3px color-mix(in srgb,var(--fg) 30%,transparent)}
+.playhead{position:absolute;top:-6px;bottom:-6px;width:2px;margin-left:-1px;background:#ff3b30;border-radius:2px;z-index:2;pointer-events:none;display:none}
+.tl-scale{display:flex;justify-content:space-between;margin-top:8px;font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+
+.times{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto auto;gap:8px;margin-top:16px;align-items:end}
+.field label{display:block;font-size:11.5px;font-weight:600;color:var(--muted-2);margin-bottom:6px}
+.inp{display:flex;align-items:center;gap:8px;height:40px;padding:0 12px;border-radius:12px;background:var(--card);border:1px solid var(--line);transition:border-color .15s}
+.inp:focus-within{border-color:var(--fg)}
+.inp svg{width:14px;height:14px;color:var(--muted);flex:none}
+.inp input{width:100%;min-width:0;border:0;background:transparent;outline:none;font-family:var(--mono);font-size:13px}
+.inp.ro{background:var(--surface-2);border-color:transparent}
+.inp.bad{border-color:#ff3b30}
+
+/* info */
+.info-head{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:14px}
+.stat{background:var(--card);border-radius:14px;padding:12px;display:flex;gap:10px;align-items:flex-start;min-width:0}
+.stat .ic-tile{background:var(--surface);border:0}
+.stat small{display:block;font-size:11px;color:var(--muted)}
+.stat b{display:block;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat > div{min-width:0}
+
+/* panel */
+.panel{position:sticky;top:76px;max-height:calc(100vh - 92px);display:flex;flex-direction:column;padding:0;overflow:hidden}
+.panel-scroll{overflow:auto;padding:14px 14px 4px;overscroll-behavior:contain;scrollbar-width:thin}
+.seg{display:flex;background:var(--surface-2);border-radius:999px;padding:3px}
+.seg button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:34px;border-radius:999px;font-size:12.5px;font-weight:600;color:var(--muted-2)}
+.seg button svg{width:14px;height:14px}
+.seg button.on{background:var(--card);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.p-title{font-size:20px;font-weight:700;letter-spacing:-.03em;margin-top:18px}
+.p-sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+.group{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:18px 2px 8px}
+.rows{display:flex;flex-direction:column;gap:6px}
+.row{display:flex;align-items:center;gap:12px;padding:10px 10px 10px 12px;border-radius:14px;background:var(--card);border:1.5px solid transparent;cursor:pointer;transition:border-color .15s,background .15s;text-align:left;width:100%}
+.row:hover{border-color:var(--line)}
+.row.on{border-color:var(--fg)}
+.radio{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--line);flex:none;display:grid;place-items:center;transition:border-color .15s}
+.row.on .radio{border-color:var(--fg)}
+.row.on .radio::after{content:"";width:9px;height:9px;border-radius:50%;background:var(--fg)}
+.row .ic-tile{width:34px;height:34px;border-radius:10px;background:var(--surface);border:0}
+.row .ic-tile svg{width:16px;height:16px}
+.row-txt{flex:1;min-width:0}
+.row-txt b{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600}
+.row-txt small{display:block;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.best{font-size:9.5px;font-weight:700;background:var(--inverse);color:var(--on-inverse);padding:2px 7px;border-radius:999px;letter-spacing:.02em}
+.size{font-size:12px;color:var(--muted-2);white-space:nowrap;font-variant-numeric:tabular-nums}
+.row .icon-btn{width:32px;height:32px;border:1px solid var(--line)}
+
+/* advanced */
+.adv{margin-top:14px;background:var(--card);border-radius:16px}
+.adv summary{list-style:none;display:flex;align-items:center;gap:10px;padding:12px 14px;font-weight:600;font-size:13.5px;cursor:pointer}
+.adv summary::-webkit-details-marker{display:none}
+.adv summary .chev{margin-left:auto;width:16px;height:16px;color:var(--muted);transition:transform .2s}
+.adv[open] summary .chev{transform:rotate(180deg)}
+.adv summary .ic-tile{width:26px;height:26px;background:var(--surface);border:0}
+.adv-body{padding:0 14px 14px}
+.selects{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.selects label{display:block;font-size:11.5px;font-weight:600;color:var(--muted-2);margin-bottom:6px}
+.sel{position:relative}
+.sel select{appearance:none;-webkit-appearance:none;width:100%;height:40px;padding:0 32px 0 12px;border-radius:12px;background:var(--surface);border:1px solid transparent;font-size:13px;font-weight:500;cursor:pointer;outline:none}
+.sel select:focus{border-color:var(--fg)}
+.sel svg{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--muted);pointer-events:none}
+.hint{font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.45}
+.er{display:flex;gap:12px;align-items:flex-start;margin-top:12px;padding:12px;border-radius:12px;background:var(--surface);cursor:pointer}
+.er b{display:block;font-size:12.5px}
+.er small{display:block;font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:2px}
+.er > div{flex:1}
+.switch{width:36px;height:20px;border-radius:999px;background:var(--surface-2);position:relative;flex:none;transition:background .2s;margin-top:2px;border:1px solid var(--line)}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .2s}
+.er[aria-checked="true"] .switch{background:var(--inverse);border-color:var(--inverse)}
+.er[aria-checked="true"] .switch::after{transform:translateX(16px);background:var(--on-inverse)}
+
+/* panel footer */
+.p-foot{padding:12px 14px 14px;background:var(--surface);border-top:1px solid var(--line)}
+.main-dl{width:100%;height:50px;font-size:14.5px;justify-content:space-between;padding:0 8px 0 20px}
+.main-dl .l{display:flex;align-items:center;gap:9px}
+.main-dl .r{font-size:12.5px;font-weight:600;background:color-mix(in srgb,var(--on-inverse) 14%,transparent);padding:6px 12px;border-radius:999px;font-variant-numeric:tabular-nums}
+.p-note{font-size:11px;color:var(--muted);text-align:center;margin-top:8px}
+
+/* frame/thumb panes */
+.pane[hidden]{display:none}
+.big-tc{margin-top:14px;background:var(--card);border-radius:14px;padding:14px;display:flex;align-items:center;justify-content:space-between}
+.big-tc small{font-size:11.5px;color:var(--muted)}
+.big-tc b{font-family:var(--mono);font-size:20px;font-weight:500}
+.step-btns{display:flex;gap:6px}
+.thumb-prev{margin-top:14px;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:
+  radial-gradient(120% 90% at 82% 100%,#ff8a5b 0%,transparent 55%),radial-gradient(90% 80% at 10% 0%,#3a7bd5 0%,transparent 60%),linear-gradient(160deg,#141832,#2b2140 60%,#4a2a3a)}
+
+/* back + footer */
+.back{display:flex;justify-content:center;padding:28px 20px 80px}
+footer{border-top:1px solid var(--line);padding:22px 20px 28px;text-align:center}
+.disc{display:inline-flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--muted);max-width:620px;text-align:left}
+.disc svg{width:14px;height:14px;flex:none;margin-top:1px}
+.f-links{display:flex;justify-content:center;flex-wrap:wrap;gap:6px 18px;margin-top:12px;font-size:12px;font-weight:500;color:var(--muted-2)}
+.f-links a:hover{color:var(--fg)}
+
+/* toast */
+/* toasts: a list of dark cards in the bottom-right, newest at the bottom. */
+.toasts{position:fixed;right:24px;bottom:24px;width:min(420px,calc(100% - 32px));z-index:80;margin:0;padding:0;list-style:none;
+  display:flex;flex-direction:column-reverse;pointer-events:none}
+.toast{--tc:#3b82f6;display:flex;align-items:flex-start;gap:14px;margin-top:12px;max-height:240px;
+  background:#0b0b0b;color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:16px 14px 16px 18px;
+  box-shadow:0 12px 32px rgba(0,0,0,.35);overflow:hidden;box-sizing:border-box;pointer-events:auto;
+  transition:transform .35s cubic-bezier(.2,.8,.2,1),opacity .3s,max-height .3s,margin .3s,padding .3s,border-width .3s}
+.toast.enter{opacity:0;transform:translateX(32px)}
+.toast.out{opacity:0;transform:translateX(32px);pointer-events:none}
+.toast.gone{max-height:0;margin-top:0;padding-top:0;padding-bottom:0;border-width:0}
+.toast .t-ic{flex:none;width:24px;height:24px;color:var(--tc);margin-top:1px}
+.toast .t-ic svg{width:24px;height:24px;display:block}
+.toast .t-ic .spin{animation:tspin .9s linear infinite;transform-origin:50% 50%}
+@keyframes tspin{to{transform:rotate(360deg)}}
+.toast .t-body{flex:1;min-width:0;display:grid;gap:4px}
+.toast .t-title{font-size:15px;font-weight:600;line-height:1.35;overflow-wrap:anywhere}
+.toast .t-msg{font-size:14px;color:#a3a3a3;line-height:1.45;overflow-wrap:anywhere}
+.toast .t-msg:empty{display:none}
+.toast .t-bar{height:4px;margin-top:6px;border-radius:4px;background:rgba(255,255,255,.12);overflow:hidden}
+.toast .t-bar i{display:block;height:100%;background:var(--tc);border-radius:4px;transition:width .4s}
+.toast .t-act{justify-self:start;margin-top:8px;font:600 13px/1 inherit;color:#fff;background:#1f1f1f;border:1px solid rgba(255,255,255,.16);border-radius:8px;padding:7px 12px;cursor:pointer}
+.toast .t-act:hover{background:#2a2a2a}
+.toast .t-x{flex:none;display:grid;place-items:center;width:28px;height:28px;margin:-3px -2px 0 0;padding:0;border:0;border-radius:8px;background:none;color:#a3a3a3;cursor:pointer}
+.toast .t-x:hover{color:#fff;background:rgba(255,255,255,.08)}
+.toast .t-x svg{width:16px;height:16px}
+/* blue: info and downloading · yellow: waiting/preparing · purple: cutting/converting · green: done · red: error */
+.toast.ok{--tc:#22c55e}.toast.error{--tc:#ef4444}.toast.wait{--tc:#eab308}.toast.work{--tc:#a855f7}
+
+/* responsive */
+@media (max-width:1000px){
+  .nav-links,.status{display:none}
+  .app{grid-template-columns:1fr}
+  .panel{position:relative;top:0;max-height:none;overflow:visible}
+  .panel-scroll{overflow:visible}
+  .p-foot{position:sticky;bottom:0;border-radius:0 0 24px 24px;z-index:5;box-shadow:0 -10px 24px -12px rgba(0,0,0,.12)}
+  .toasts{bottom:96px;right:16px}
+}
+@media (max-width:720px){
+  .times{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .times .btn{grid-column:span 3;height:42px}
+  .times .btn-ghost{grid-column:span 3}
+  .stats{grid-template-columns:1fr 1fr}
+}
+@media (max-width:520px){
+  .app{padding:14px 12px 16px;gap:12px}
+  .card{padding:14px;border-radius:20px}
+  .panel{padding:0}
+  .src-actions .icon-btn:last-child{display:none}
+  .title{font-size:15.5px}
+  .times{grid-template-columns:1fr 1fr}
+  .times .field:nth-child(3){grid-column:span 2}
+  .times .btn,.times .btn-ghost{grid-column:span 2}
+  .nav .btn-start{display:none}
+  .seg button span{display:none}
+  .seg button.on span{display:inline}
+  .selects{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ---------- backend states ---------- */
+[hidden]{display:none!important}
+.state{max-width:620px;margin:56px auto 24px;padding:0 20px;text-align:center}
+.state .card{padding:36px 24px}
+.spinner{width:34px;height:34px;margin:0 auto 18px;border-radius:50%;border:3px solid var(--surface-2);border-top-color:var(--fg);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.state h1{font-size:22px;font-weight:700;letter-spacing:-.03em}
+.state p{font-size:13.5px;color:var(--muted);margin-top:6px;overflow-wrap:anywhere}
+.state .url-line{font-family:var(--mono);font-size:12px;margin-top:12px;color:var(--muted-2);overflow-wrap:anywhere}
+.err-ic{width:44px;height:44px;margin:0 auto 16px;border-radius:50%;background:color-mix(in srgb,#ff3b30 14%,transparent);color:#ff3b30;display:grid;place-items:center}
+.err-ic svg{width:20px;height:20px}
+.retry{display:flex;gap:6px;margin-top:22px;padding:5px;border-radius:999px;background:var(--card);border:1px solid var(--line)}
+.retry input{flex:1;min-width:0;border:0;background:transparent;outline:none;padding:0 12px;font-size:13.5px}
+.state-links{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-top:14px}
+.btn[disabled],.row[aria-disabled="true"]{opacity:.45;pointer-events:none}
+.note{font-size:12px;color:var(--muted);margin-top:14px;padding:10px 12px;border-radius:12px;background:var(--card)}
+
+/* gallery */
+.gal-wrap{max-width:1120px;margin:0 auto;padding:0 20px 8px}
+.gal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.gal-head h2{font-size:17px;font-weight:700;letter-spacing:-.02em}
+.gal-head small{font-size:12px;color:var(--muted)}
+.gal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-top:16px}
+.tile{position:relative;background:var(--card);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+.tile-vis{aspect-ratio:1;background:var(--surface-2);display:grid;place-items:center;overflow:hidden}
+.tile-vis img,.tile-vis video{width:100%;height:100%;object-fit:cover;display:block}
+.tile-vis svg{width:28px;height:28px;color:var(--muted)}
+.tile-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 8px 8px 12px;font-size:12px;font-weight:600}
+.tile-foot small{display:block;font-size:11px;font-weight:500;color:var(--muted)}
+.tile-kind{position:absolute;top:8px;left:8px;font-size:10px;font-weight:700;color:#fff;background:rgba(0,0,0,.5);padding:3px 7px;border-radius:6px}
+
+
+/* full video / trimmed clip choice */
+.scope{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:14px}
+.scope button{display:flex;align-items:flex-start;gap:10px;padding:11px 12px;border-radius:14px;background:var(--card);border:1.5px solid transparent;text-align:left;transition:border-color .15s;min-width:0}
+.scope button:hover{border-color:var(--line)}
+.scope button.on{border-color:var(--fg)}
+.scope button[disabled]{opacity:.45;cursor:not-allowed}
+.scope b{display:block;font-size:13px;font-weight:600}
+.scope small{display:block;font-size:11px;color:var(--muted);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scope span:last-child{min-width:0}
+.chk{width:18px;height:18px;border-radius:6px;border:1.5px solid var(--line);display:grid;place-items:center;flex:none;margin-top:1px;transition:background .15s,border-color .15s}
+.chk svg{width:12px;height:12px;color:var(--on-inverse);opacity:0}
+.scope button.on .chk{background:var(--fg);border-color:var(--fg)}
+.scope button.on .chk svg{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<header class="nav">
+  <div class="nav-in">
+    <a href="/" class="brand" aria-label="Video Downloader home">
+      <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></span>
+      Video Downloader
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="/#features">Features</a>
+      <a href="/#how">How it works</a>
+      <a href="/#sites">Sites</a>
+      <a href="/#faq">FAQ</a>
+    </nav>
+    <div class="nav-right">
+      <button class="icon-btn" id="themeBtn" aria-label="Toggle dark mode">
+        <svg id="icMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <svg id="icSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+      <a href="/" class="btn btn-dark btn-sm btn-start">New download</a>
+    </div>
+  </div>
+</header>
+
+<!-- ============ LOADING ============ -->
+<section class="state" id="loading">
+  <div class="card">
+    <div class="spinner" aria-hidden="true"></div>
+    <h1>Reading the link…</h1>
+    <p>Finding every quality, the sound and the thumbnail. This can take a few seconds.</p>
+    <div class="url-line" id="loadUrl"></div>
+  </div>
+</section>
+
+<!-- ============ ERROR ============ -->
+<section class="state" id="errorBox" hidden>
+  <div class="card">
+    <div class="err-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 7v6M12 17h.01"/></svg></div>
+    <h1>Couldn't read this link</h1>
+    <p id="errMsg"></p>
+    <form class="retry" id="retryForm" autocomplete="off">
+      <label for="retryUrl" class="sr">Video link</label>
+      <input id="retryUrl" type="url" placeholder="Paste another link…">
+      <button class="btn btn-dark btn-sm" type="submit">Fetch</button>
+    </form>
+    <div class="state-links">
+      <a class="btn btn-gray btn-sm" id="loginLink" href="/classic" hidden>Set up Login (classic interface)</a>
+      <a class="btn btn-gray btn-sm" href="/">Back to home</a>
+    </div>
+  </div>
+</section>
+
+<main class="app" id="app" hidden>
+  <!-- ============ LEFT ============ -->
+  <div class="col">
+    <section class="card" aria-labelledby="vTitle">
+      <div class="src">
+        <span class="src-ic" id="srcIc" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z" fill="#fff"/></svg></span>
+        <div class="src-txt">
+          <div class="platform" id="vPlatform"></div>
+          <h1 class="title" id="vTitle"></h1>
+          <div class="meta" id="vMeta"></div>
+        </div>
+        <div class="src-actions">
+          <button class="icon-btn white" id="copyBtn" aria-label="Copy link" title="Copy link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
+          </button>
+          <a class="icon-btn white" id="openBtn" href="#" target="_blank" rel="noopener noreferrer" aria-label="Open original" title="Open original">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <div class="player" id="player">
+        <video id="video" playsinline preload="metadata"></video>
+        <span class="p-badge" id="pBadge"></span>
+        <select class="p-q" id="pQuality" aria-label="Preview quality" title="Preview quality. Lower plays and seeks faster; it doesn't change the download." hidden></select>
+        <span class="p-time" id="pTime">0:00.00</span>
+        <button class="big-play" id="bigPlay" aria-label="Play preview"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg></button>
+      </div>
+
+      <div id="trimBlock" hidden>
+        <div class="trim-head">
+          <div class="lbl">
+            <span class="ic-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="7" r="2.5"/><circle cx="6" cy="17" r="2.5"/><path d="M8.2 8.3 20 18M8.2 15.7 20 6"/></svg></span>
+            Trim clip
+            <span class="help" tabindex="0" data-tip="Drag the handles or type exact times. Press I / O to set in and out at the playhead, and , / . to step one frame. Arrow keys nudge a focused handle by 1s (Shift: 10s).">?</span>
+          </div>
+          <div class="sel-info">Selected <b id="selLen"></b></div>
+        </div>
+
+        <div class="tl-wrap" id="tlWrap">
+          <div class="tl" id="tl" aria-hidden="true"></div>
+          <div class="shade" id="shadeL"></div>
+          <div class="shade" id="shadeR"></div>
+          <div class="range" id="range"></div>
+          <div class="playhead" id="playhead"></div>
+          <div class="handle" id="hIn" role="slider" tabindex="0" aria-label="Clip start"><span class="tag" id="tagIn"></span></div>
+          <div class="handle" id="hOut" role="slider" tabindex="0" aria-label="Clip end"><span class="tag" id="tagOut"></span></div>
+        </div>
+        <div class="tl-scale"><span>0:00.00</span><span id="scaleEnd"></span></div>
+
+        <div class="times">
+          <div class="field">
+            <label for="inStart">Start</label>
+            <div class="inp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><input id="inStart" inputmode="decimal" spellcheck="false"></div>
+          </div>
+          <div class="field">
+            <label for="inEnd">End</label>
+            <div class="inp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><input id="inEnd" inputmode="decimal" spellcheck="false"></div>
+          </div>
+          <div class="field">
+            <label for="inDur">Duration</label>
+            <div class="inp ro"><input id="inDur" readonly tabindex="-1"></div>
+          </div>
+          <button class="btn btn-white" id="previewBtn"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg>Preview clip</button>
+          <button class="btn btn-ghost" id="resetBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Reset</button>
+        </div>
+      </div>
+      <p class="note" id="trimNote" hidden></p>
+    </section>
+
+    <section class="card" aria-label="Video information">
+      <div class="info-head"><span class="ic-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></span>Video information</div>
+      <div class="stats">
+        <div class="stat"><span class="ic-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><div><small>Duration</small><b id="sDur">—</b></div></div>
+        <div class="stat"><span class="ic-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span><div><small>Resolution</small><b id="sRes">—</b></div></div>
+        <div class="stat"><span class="ic-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg></span><div><small>File size (best)</small><b id="sSize">—</b></div></div>
+        <div class="stat"><span class="ic-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></span><div><small>Source</small><b id="sSrc">—</b></div></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ RIGHT PANEL ============ -->
+  <aside class="card panel" aria-label="Download options">
+    <div class="panel-scroll">
+      <div class="seg" role="tablist">
+        <button class="on" role="tab" aria-selected="true" data-tab="download"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><span>Download</span></button>
+        <button role="tab" aria-selected="false" data-tab="frame"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg><span>Frame grab</span></button>
+        <button role="tab" aria-selected="false" data-tab="thumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 16 5-5 4 4 2-2 7 7"/></svg><span>Thumbnail</span></button>
+      </div>
+
+      <!-- Download pane -->
+      <div class="pane" id="pane-download">
+        <h2 class="p-title">Download video</h2>
+        <p class="p-sub">Pick a quality and format. Trimmed clips are sized to your selection.</p>
+        <div class="scope" role="radiogroup" aria-label="What to download">
+          <button type="button" role="radio" aria-checked="true" data-scope="full" class="on">
+            <span class="chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg></span>
+            <span><b>Full video</b><small id="scopeFull">Whole video</small></span>
+          </button>
+          <button type="button" role="radio" aria-checked="false" data-scope="clip">
+            <span class="chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg></span>
+            <span><b>Trimmed clip</b><small id="scopeClip">Set start &amp; end</small></span>
+          </button>
+        </div>
+        <div id="videoGroup"><div class="group">Video</div><div class="rows" id="videoRows"></div></div>
+        <div id="audioGroup"><div class="group">Audio</div><div class="rows" id="audioRows"></div></div>
+
+        <details class="adv">
+          <summary>
+            <span class="ic-tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></span>
+            Advanced options
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </summary>
+          <div class="adv-body">
+            <div id="cutBox">
+              <label for="cut" style="display:block;font-size:11.5px;font-weight:600;color:var(--muted-2);margin-bottom:6px">Clip cut (used when trimmed)</label>
+              <div class="sel"><select id="cut">
+                <option value="fast">Fast (lossless)</option>
+                <option value="exact">Frame-exact</option>
+              </select><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></div>
+              <p class="hint" id="cutHint"></p>
+            </div>
+            <div class="er" id="er" role="switch" aria-checked="true" tabindex="0">
+              <div><b>Edit-ready file (H.264 + AAC)</b><small id="erHint"></small></div>
+              <span class="switch"></span>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <!-- Frame grab pane -->
+      <div class="pane" id="pane-frame" hidden>
+        <h2 class="p-title">Frame grab</h2>
+        <p class="p-sub">Export the frame at the playhead at full resolution. Pause the preview or click the strip to move the playhead.</p>
+        <div class="big-tc">
+          <div><small>Playhead</small><b id="frameTc">0:00.00</b></div>
+          <div class="step-btns">
+            <button class="icon-btn white" id="fPrev" aria-label="Previous frame"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg></button>
+            <button class="icon-btn white" id="fNext" aria-label="Next frame"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></button>
+          </div>
+        </div>
+        <div class="group">Format</div>
+        <div class="rows" id="frameRows"></div>
+        <p class="note" id="frameNote" hidden></p>
+      </div>
+
+      <!-- Thumbnail pane -->
+      <div class="pane" id="pane-thumb" hidden>
+        <h2 class="p-title">Thumbnail</h2>
+        <p class="p-sub">Save the video's published cover image in a real size the site offers.</p>
+        <div class="thumb-prev" id="thumbPrev"></div>
+        <div class="group">Size</div>
+        <div class="rows" id="thumbRows"><p class="hint">Checking available sizes…</p></div>
+        <div class="selects" style="margin-top:12px;grid-template-columns:1fr">
+          <div>
+            <label for="thumbFmt">Save as</label>
+            <div class="sel"><select id="thumbFmt">
+              <option value="original">Original file</option>
+              <option value="jpg">JPG (max quality)</option>
+              <option value="png">PNG (lossless)</option>
+            </select><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="p-foot">
+      <button class="btn btn-dark main-dl" id="mainDl">
+        <span class="l"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><span id="dlLabel">Download</span></span>
+        <span class="r" id="dlSize"></span>
+      </button>
+    </div>
+  </aside>
+</main>
+
+<!-- ============ GALLERY (photos / carousels / multi-video posts) ============ -->
+<section class="gal-wrap" id="gallery" hidden>
+  <div class="card">
+    <div class="src" id="galSrc" hidden style="margin-bottom:18px">
+      <span class="src-ic" id="galIc" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="m4 16 5-5 4 4 2-2 5 5"/></svg></span>
+      <div class="src-txt">
+        <div class="platform" id="galPlatform"></div>
+        <h1 class="title" id="galTitle"></h1>
+        <div class="meta" id="galMeta"></div>
+      </div>
+    </div>
+    <div class="gal-head">
+      <div><h2>Media in this post</h2><small id="galCount"></small></div>
+      <button class="btn btn-dark btn-sm" id="zipBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Save all as ZIP</button>
+    </div>
+    <div class="gal-grid" id="galGrid"></div>
+  </div>
+</section>
+
+<div class="back" id="backRow" hidden>
+  <a href="/" class="btn btn-gray"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>Download another video</a>
+</div>
+
+<footer>
+  <span class="disc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/></svg>Only download videos you own or have permission to save. Respect creators' rights and each site's Terms of Service.</span>
+  <nav class="f-links" aria-label="Legal"><a href="/about-us">About us</a><a href="/privacy-policy">Privacy policy</a><a href="/terms-of-service">Terms of service</a><a href="/disclaimer">Disclaimer</a><a href="/classic">Classic interface</a></nav>
+</footer>
+
+<ol class="toasts" id="toasts" role="status" aria-live="polite"></ol>
+
+<script>
+(function(){
+  const $ = s => document.querySelector(s);
+  const $$ = s => Array.from(document.querySelectorAll(s));
+
+  /* ---------- theme ---------- */
+  const root = document.documentElement;
+  const store = { get(k){try{return localStorage.getItem(k)}catch(e){return null}}, set(k,v){try{localStorage.setItem(k,v)}catch(e){}} };
+  const saved = store.get('vd-theme'); if (saved) root.setAttribute('data-theme', saved);
+  const isDark = () => root.getAttribute('data-theme') ? root.getAttribute('data-theme') === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  const syncIcon = () => { $('#icMoon').style.display = isDark() ? 'none' : ''; $('#icSun').style.display = isDark() ? '' : 'none'; };
+  syncIcon();
+  $('#themeBtn').addEventListener('click', () => { const n = isDark() ? 'light' : 'dark'; root.setAttribute('data-theme', n); store.set('vd-theme', n); syncIcon(); });
+
+  /* ---------- helpers ---------- */
+  // ms = 0 keeps the notice up until the next one.
+  /* ---------- toasts ----------
+     toast(message, kind, ms, pct, opts)
+     kind: '' blue (info, downloading), 'wait' yellow, 'work' purple, 'ok' green, 'error' red.
+     ms = 0 keeps it up until it's replaced or closed. pct (0-100) adds a progress bar.
+     opts.title: bold first line (the message becomes the gray line under it).
+     opts.id: updates the toast with that id instead of adding one (one download's steps).
+     opts.action: { label, run } adds a button such as Cancel. */
+  const X_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+  const svgI = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+  const T_ICONS = {
+    ok: svgI('<circle cx="12" cy="12" r="10"/><path d="m8 12.5 2.7 2.7L16 9.8"/>'),
+    info: svgI('<circle cx="12" cy="12" r="10"/><path d="M12 16.5v-5M12 7.6v.01"/>'),
+    wait: svgI('<path d="M10.3 3.9 2.4 17.6A2 2 0 0 0 4.1 20.6h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9.5v4M12 17v.01"/>'),
+    error: svgI('<circle cx="12" cy="12" r="10"/><path d="M12 7.5v5.5M12 16.5v.01"/>'),
+    busy: svgI('<circle cx="12" cy="12" r="10" opacity=".22"/><path class="spin" d="M12 2a10 10 0 0 1 10 10"/>'),
+  };
+  // Something still running (sticky yellow/purple, or any purple) spins; otherwise the kind's icon.
+  const toastIcon = (kind, sticky) => (kind === 'work' || (sticky && kind === 'wait')) ? 'busy' : (kind || 'info');
+  const toastTimers = new Map(); let toastN = 0, lastAuto = null;
+  function toast(m, kind = '', ms = 2600, pct = null, o = {}){
+    const box = $('#toasts');
+    let key = o.id;
+    if (!key) {  // a plain toast replaces the previous plain one if that was a "working…" notice
+      key = lastAuto && box.querySelector(`[data-key="${lastAuto}"]:not([data-closing])`) ? lastAuto : 'auto' + (++toastN);
+      lastAuto = ms ? null : key;
+    }
+    let el = box.querySelector(`[data-key="${CSS.escape(key)}"]:not([data-closing])`);
+    const fresh = !el;
+    if (fresh) {
+      el = document.createElement('li');
+      el.dataset.key = key;
+      el.innerHTML = '<span class="t-ic" aria-hidden="true"></span><div class="t-body"><span class="t-title"></span><span class="t-msg"></span></div>';
+      const x = document.createElement('button'); x.className = 't-x'; x.setAttribute('aria-label', 'Dismiss'); x.innerHTML = X_ICON;
+      x.addEventListener('click', () => closeToast(el)); el.appendChild(x);
+      box.prepend(el);
+    }
+    el.className = 'toast' + (fresh ? ' enter' : '') + (kind ? ' ' + kind : '') + (ms ? '' : ' sticky');
+    const ic = el.querySelector('.t-ic'), icName = toastIcon(kind, !ms);
+    if (ic.dataset.icon !== icName) { ic.dataset.icon = icName; ic.innerHTML = T_ICONS[icName]; }
+    el.querySelector('.t-title').textContent = o.title || m;
+    el.querySelector('.t-msg').textContent = o.title ? m : '';
+    let bar = el.querySelector('.t-bar');
+    if (pct != null) {
+      if (!bar) { bar = document.createElement('span'); bar.className = 't-bar'; bar.innerHTML = '<i></i>'; el.querySelector('.t-body').appendChild(bar); }
+      bar.firstChild.style.width = Math.max(2, Math.min(100, pct)) + '%';
+    } else if (bar) bar.remove();
+    let act = el.querySelector('.t-act');
+    if (o.action) {
+      if (!act) { act = document.createElement('button'); act.className = 't-act'; el.querySelector('.t-body').appendChild(act); }
+      act.textContent = o.action.label; act.onclick = o.action.run;
+    } else if (act) act.remove();
+    clearTimeout(toastTimers.get(el));
+    if (ms) toastTimers.set(el, setTimeout(() => closeToast(el), ms));
+    layoutToasts();
+    if (fresh) { void el.offsetWidth; setTimeout(() => el.classList.remove('enter'), 20); }  // slide in
+    return el;
+  }
+  function closeToast(el){
+    if (!el.isConnected || el.dataset.closing) return;
+    clearTimeout(toastTimers.get(el)); toastTimers.delete(el);
+    el.dataset.closing = '1'; el.classList.add('out');            // slide out, then fold the gap shut
+    setTimeout(() => el.classList.add('gone'), 220);
+    setTimeout(() => el.remove(), 560);
+  }
+  // At most 4 cards on screen: the oldest goes first.
+  function layoutToasts(){
+    [...$('#toasts').children].filter(e => !e.dataset.closing).slice(4).forEach(closeToast);
+  }
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fmt = s => { s = Math.max(0, s); const m = Math.floor(s / 60), r = s - m * 60; return m + ':' + r.toFixed(2).padStart(5, '0'); };
+  const fmtShort = s => { s = Math.round(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), r = s % 60;
+    return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(r).padStart(2, '0'); };
+  const parse = str => {
+    str = String(str).trim(); if (!str) return NaN;
+    const parts = str.split(':').map(Number); if (parts.some(isNaN)) return NaN;
+    return parts.reduce((a, p) => a * 60 + p, 0);
+  };
+  const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch(e) { return '—'; } };
+  const mb = bytes => bytes ? bytes / 1048576 : null;
+  const DL_HINT = /Mac/i.test(navigator.platform) ? '⌥⌘L' : 'Ctrl+J';
+  const ICONS = {
+    video: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></svg>',
+    audio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+    image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 16 5-5 4 4 2-2 7 7"/></svg>',
+    dl: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>'
+  };
+  const SITES = {
+    facebook: ['Facebook', '#1877f2'], youtube: ['YouTube', '#ff3b30'], instagram: ['Instagram', '#e1306c'],
+    tiktok: ['TikTok', '#2a2a2a'], twitter: ['X', '#2a2a2a'], reddit: ['Reddit', '#ff4500'],
+    linkedin: ['LinkedIn', '#0a66c2'], pinterest: ['Pinterest', '#e60023']
+  };
+
+  // Download through the browser's own download manager (shows in Ctrl+J with progress).
+  function browserDownload(href){ const a = document.createElement('a'); a.href = href; document.body.appendChild(a); a.click(); a.remove(); }
+  // Fetch a file first so server errors show as a message instead of a broken download.
+  async function fetchFile(url, fallback){
+    const res = await fetch(url);
+    if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Download failed.'); }
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
+    const name = m ? decodeURIComponent(m[1]) : fallback;
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    return name;
+  }
+
+  /* ---------- load ---------- */
+  const qsUrl = (new URLSearchParams(location.search).get('url') || '').trim();
+  if (!qsUrl) { location.replace('/'); return; }
+
+  function show(which){
+    $('#loading').hidden = which !== 'loading';
+    $('#errorBox').hidden = which !== 'error';
+    $('#app').hidden = which !== 'video';
+    $('#gallery').hidden = which !== 'gallery';
+    $('#backRow').hidden = which === 'loading' || which === 'error';
+  }
+  function showError(msg, login){
+    show('error');
+    $('#errMsg').textContent = msg;
+    $('#loginLink').hidden = !login;
+    document.title = "Couldn't read link — Video Downloader";
+  }
+  $('#retryForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const u = $('#retryUrl').value.trim();
+    if (!/^https?:\/\/\S+\.\S+/.test(u)) { toast('Paste a valid video link', 'error'); return; }
+    location.href = '/download?url=' + encodeURIComponent(u);
+  });
+
+  (async function load(){
+    show('loading');
+    $('#loadUrl').textContent = qsUrl;
+    let data;
+    try {
+      const res = await fetch('/api/info', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: qsUrl }) });
+      data = await res.json().catch(() => ({ error: 'The server sent an unexpected answer.' }));
+      if (!res.ok) { showError(data.error || 'Could not read this link.', !!data.login_required); return; }
+    } catch (e) {
+      showError("Can't reach the downloader server. Make sure  python app.py  is running.", false); return;
+    }
+    $('#retryUrl').value = '';
+    if (data.kind === 'gallery') { renderGallery(data, true); show('gallery'); }
+    else { renderVideo(data); show('video'); if (data.media_available) loadExtraMedia(data.token); }
+  })();
+
+  /* =========================================================
+     VIDEO
+     ========================================================= */
+  let D, S, allItems, video, player;
+
+  function renderVideo(data){
+    const [pName, pColor] = SITES[data.site] || [data.site || 'Video', '#5c5c5c'];
+    const [fw, fh] = (data.frame_size || '').split('x').map(Number);
+    D = {
+      site: data.site, platform: pName, title: data.title || 'Video', author: data.uploader || '',
+      duration: data.duration || 0, width: fw || 0, height: fh || 0, url: data.url || qsUrl,
+      src: data.preview || '', previews: data.previews || [], thumb: data.thumbnail || '', token: data.token, fps: data.fps || 30,
+      canEdit: !!data.can_edit, encoder: data.exact_encoder || 'CPU',
+      video: [], audio: []
+    };
+    (data.options || []).forEach(o => {
+      if (o.format === 'mp3') D.audio.push({ id: 'mp3', label: 'Audio', meta: 'MP3 · converted', size: mb(o.size) });
+      else if (o.format === 'audio') D.audio.push({ id: 'audio', label: 'Audio', meta: (o.ext || 'm4a').toUpperCase() + ' · original', size: mb(o.size) });
+      else D.video.push({ id: o.format, label: o.label, meta: 'MP4', size: mb(o.size) });
+    });
+    if (D.video[0]) D.video[0].best = true;
+    allItems = [...D.video, ...D.audio];
+    S = { tab: 'download', sel: { download: allItems[0] ? allItems[0].id : null, frame: 'png', thumb: null },
+          tin: 0, tout: D.duration, head: 0, editReady: true, busy: false, trimReady: false, scope: 'full' };
+
+    // header + info
+    $('#srcIc').style.background = pColor;
+    $('#vPlatform').textContent = pName;
+    $('#vTitle').textContent = D.title;
+    document.title = D.title + ' — Video Downloader';
+    syncMeta();
+    $('#sSrc').textContent = host(D.url);
+    $('#openBtn').href = D.url;
+    const sizes = D.video.map(v => v.size).filter(Boolean);
+    $('#sSize').textContent = sizes.length ? Math.max(...sizes).toFixed(1) + ' MB' : '—';
+    $('#pBadge').textContent = D.video[0] ? D.video[0].label.split(' ')[0] : '';
+    if (D.thumb) { $('#thumbPrev').style.background = `center/cover no-repeat url("${D.thumb.replace(/"/g, '%22')}")`; }
+    $('#copyBtn').addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(D.url); toast('Link copied'); } catch(e) { toast(D.url); }
+    });
+
+    $('#videoGroup').hidden = !D.video.length;
+    $('#audioGroup').hidden = !D.audio.length;
+    $('#er').hidden = !D.video.length;
+
+    setupRows(); setupTabs(); setupAdvanced(); setupPlayer();
+    if (!D.canEdit) {
+      $('#cutBox').hidden = true;
+      $('#trimNote').hidden = false;
+      $('#trimNote').textContent = 'Trimming, MP3 and frame grabs need ffmpeg. Install it and restart the app to turn them on.';
+      $('#frameNote').hidden = false; $('#frameNote').textContent = 'Frame grabs need ffmpeg.';
+    }
+    if (D.duration) initTrim();
+    syncRows(); syncMain();
+  }
+
+  function syncMeta(){
+    const parts = [];
+    if (D.author) parts.push('by ' + esc(D.author));
+    if (D.duration) parts.push(fmtShort(D.duration));
+    if (D.width) parts.push(D.width + '×' + D.height);
+    $('#vMeta').innerHTML = parts.join('<i>•</i>');
+    $('#sDur').textContent = D.duration ? fmtShort(D.duration) : '—';
+    $('#sRes').textContent = D.width ? D.width + ' × ' + D.height : '—';
+  }
+
+  /* ---------- rows ---------- */
+  const clipRatio = () => D.duration ? (S.tout - S.tin) / D.duration : 1;
+  const canClip = () => S.trimReady && D.canEdit;
+  const hasCut = () => S.tin > 0.01 || S.tout < D.duration - 0.01;
+  // Only download a clip when "Trimmed clip" is checked and the handles were actually moved.
+  const trimmed = () => S.scope === 'clip' && canClip() && hasCut();
+  function setScope(s){ S.scope = s === 'clip' && canClip() ? 'clip' : 'full'; refreshSizes(); syncMain(); }
+  function syncScope(){
+    $$('.scope button').forEach(b => {
+      const on = b.dataset.scope === S.scope;
+      b.classList.toggle('on', on); b.setAttribute('aria-checked', on);
+    });
+    $('.scope [data-scope="clip"]').disabled = !canClip();
+    $('#scopeFull').textContent = D.duration ? fmtShort(D.duration) : 'Whole video';
+    $('#scopeClip').textContent = !canClip() ? (D.canEdit ? 'Not available' : 'Needs ffmpeg')
+      : hasCut() ? fmt(S.tin) + '–' + fmt(S.tout) : 'Set start & end';
+  }
+  const sizeText = size => {
+    if (size == null || isNaN(size)) return '';
+    if (!trimmed()) return size.toFixed(1) + ' MB';
+    return '≈ ' + Math.max(0.1, size * clipRatio()).toFixed(1) + ' MB';
+  };
+  function rowHTML(item, kind, group){
+    return `<div class="row" role="radio" tabindex="0" aria-checked="false" data-group="${group}" data-id="${esc(item.id)}"${item.disabled ? ' aria-disabled="true"' : ''}>
+      <span class="radio"></span>
+      <span class="ic-tile">${ICONS[kind]}</span>
+      <span class="row-txt"><b>${esc(item.label)}${item.best ? '<span class="best">Best</span>' : ''}</b><small>${esc(item.meta)}</small></span>
+      <span class="size" data-size="${item.size == null ? '' : item.size}">${sizeText(item.size)}</span>
+      ${group === 'download' ? `<button class="icon-btn" data-quick="${esc(item.id)}" aria-label="Download ${esc(item.label)} ${esc(item.meta)}" tabindex="-1">${ICONS.dl}</button>` : ''}
+    </div>`;
+  }
+  function bindRows(container){
+    container.querySelectorAll('.row').forEach(r => {
+      r.addEventListener('click', e => { if (e.target.closest('[data-quick]')) return; selectRow(r); });
+      r.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); selectRow(r); } });
+    });
+    container.querySelectorAll('[data-quick]').forEach(b => b.addEventListener('click', () => {
+      S.sel.download = b.dataset.quick; syncRows(); syncMain(); startDownload();
+    }));
+  }
+  function setupRows(){
+    // MP3 is made by ffmpeg, so it's off without it.
+    D.audio.forEach(a => { if (a.id === 'mp3' && !D.canEdit) a.disabled = true; });
+    $('#videoRows').innerHTML = D.video.map(v => rowHTML(v, 'video', 'download')).join('');
+    $('#audioRows').innerHTML = D.audio.map(a => rowHTML(a, 'audio', 'download')).join('');
+    const res = D.width ? D.width + '×' + D.height : 'full resolution';
+    $('#frameRows').innerHTML = [
+      { id: 'png', label: 'PNG', meta: 'Lossless · ' + res, size: null, disabled: !D.canEdit },
+      { id: 'jpg', label: 'JPG', meta: 'Max quality · ' + res, size: null, disabled: !D.canEdit }
+    ].map(f => rowHTML(f, 'image', 'frame')).join('');
+    bindRows($('#videoRows')); bindRows($('#audioRows')); bindRows($('#frameRows'));
+  }
+  function syncRows(){
+    $$('.row').forEach(r => {
+      const on = S.sel[r.dataset.group] === r.dataset.id;
+      r.classList.toggle('on', on); r.setAttribute('aria-checked', on);
+    });
+  }
+  function selectRow(r){ S.sel[r.dataset.group] = r.dataset.id; syncRows(); syncMain(); }
+  function refreshSizes(){ $$('.size').forEach(el => { const v = el.dataset.size; el.textContent = v === '' ? '' : sizeText(parseFloat(v)); }); }
+
+  /* ---------- main button ---------- */
+  function syncMain(){
+    let label = 'Download', size = '', ok = true;
+    if (S.tab === 'download') {
+      const it = allItems.find(i => i.id === S.sel.download);
+      if (!it) { label = 'No downloadable format'; ok = false; }
+      else {
+        const isAudio = D.audio.includes(it);
+        label = (trimmed() ? 'Download clip · ' : 'Download ') + (isAudio ? it.meta.split(' · ')[0] : it.label);
+        size = it.size != null ? sizeText(it.size) : (isAudio ? it.meta.split(' · ')[0] : '');
+      }
+    } else if (S.tab === 'frame') {
+      label = 'Grab frame at ' + fmt(S.head); size = S.sel.frame.toUpperCase(); ok = D.canEdit;
+    } else {
+      const t = (S.thumbs || []).find(x => String(x.index) === S.sel.thumb);
+      label = 'Save thumbnail'; size = t ? t.width + '×' + t.height : ''; ok = !!t;
+    }
+    $('#dlLabel').textContent = label;
+    $('#dlSize').textContent = size; $('#dlSize').style.display = size ? '' : 'none';
+    $('#mainDl').disabled = !ok || S.busy;
+    if (S.scope) syncScope();
+  }
+
+  async function startDownload(){
+    if (S.tab === 'frame') return grabFrame();
+    if (S.tab === 'thumb') return saveThumb();
+    const it = allItems.find(i => i.id === S.sel.download); if (!it) return;
+    const body = { url: D.url, format: it.id, compat: S.editReady, title: D.title, token: D.token };
+    if (trimmed()) { body.start = S.tin.toFixed(3); body.end = S.tout.toFixed(3); body.exact = $('#cut').value === 'exact'; }
+    const tid = 'dl' + (++toastN);
+    const what = (D.audio.includes(it) ? it.meta.split(' · ')[0] : it.label) + (trimmed() ? ' clip' : '');
+    toast(what, 'wait', 0, null, { id: tid, title: 'Starting download' });
+    runDownload(body, tid);
+  }
+  async function runDownload(body, tid){
+    try {
+      const res = await fetch('/api/jobs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not start the download.');
+      if (data.direct) {
+        browserDownload(`/api/jobs/${data.id}/stream`);
+        toast(`${data.name} · see your downloads (${DL_HINT})`, '', data.live ? 0 : 7000, null, { id: tid, title: 'Downloading' });
+        if (data.live) watchLive(data.id, data.name, tid, body);
+        return;
+      }
+      // Prepared files (trims, joins, conversions): wait here, then hand the finished file to the
+      // browser so its download list shows the real size and a progress bar instead of 0 B.
+      toast(data.name, 'wait', 0, null, { id: tid, title: 'Preparing…', action: cancelAction(data.id) });
+      watchJob(data.id, data.name, tid);
+    } catch (e) { toast(e.message, 'error', 10000, null, { id: tid, title: 'Download failed' }); }
+  }
+  // A clip cut while it downloads. The browser was given an estimated size; in the rare case
+  // the clip comes out bigger (or the live cut fails) it's made again the prepared way.
+  async function watchLive(id, name, tid, body){
+    for (let i = 0; i < 7200; i++) {
+      await new Promise(r => setTimeout(r, 1000));
+      let job;
+      try { const r = await fetch(`/api/jobs/${id}`); job = await r.json(); if (!r.ok) return; } catch(e) { return; }
+      if (job.status === 'done') { toast(`${name} · saved to your downloads`, 'ok', 6000, null, { id: tid, title: 'Clip downloaded' }); return; }
+      if (job.status === 'error') {
+        toast('Your browser will show this attempt as failed; a new download starts when it\'s ready.', 'wait', 0, null, { id: tid, title: 'Remaking the clip…' });
+        return runDownload({ ...body, live: false }, tid);
+      }
+    }
+  }
+  const cancelAction = id => ({ label: 'Cancel', run: () => fetch(`/api/jobs/${id}/cancel`, { method: 'POST' }).catch(() => {}) });
+  async function watchJob(id, name, tid){
+    while (true) {
+      await new Promise(r => setTimeout(r, 1000));
+      let job;
+      try { const r = await fetch(`/api/jobs/${id}`); job = await r.json(); if (!r.ok) return; } catch(e) { return; }
+      if (job.status === 'running') {
+        const pct = job.percent != null ? ' · ' + job.percent.toFixed(0) + '%' : '';
+        const left = job.eta ? ' · ' + fmtShort(job.eta) + ' left' : '';
+        const busy = /cut|convert|encod|join|merg|extract|finish/i.test(job.phase || '');
+        toast(name, busy ? 'work' : 'wait', 0, job.percent, { id: tid, title: `${job.phase || 'Preparing'}${pct}${left}`, action: cancelAction(id) });
+        continue;
+      }
+      if (job.status === 'done') {
+        browserDownload(`/api/jobs/${id}/stream`);
+        toast(`${name} · see your downloads (${DL_HINT})`, 'ok', 7000, null, { id: tid, title: 'Ready · downloading' });
+      } else if (job.status === 'cancelled') toast(name, '', 4000, null, { id: tid, title: 'Download cancelled' });
+      else toast(job.error || 'Something went wrong.', 'error', 12000, null, { id: tid, title: 'Download failed' });
+      return;
+    }
+  }
+  async function busy(fn){
+    S.busy = true; syncMain();
+    try { await fn(); } catch (e) { toast(e.message, 'error', 10000, null, { title: 'Something went wrong' }); }
+    finally { S.busy = false; syncMain(); }
+  }
+  function grabFrame(){
+    return busy(async () => {
+      if (video && !video.paused) video.pause();
+      toast('At ' + fmt(S.head), 'work', 0, null, { title: 'Capturing frame…' });
+      const p = new URLSearchParams({ token: D.token, t: S.head.toFixed(3), fmt: S.sel.frame });
+      const name = await fetchFile('/api/frame?' + p, 'frame.' + S.sel.frame);
+      toast(name, 'ok', 4000, null, { title: 'Frame saved' });
+    });
+  }
+  function saveThumb(){
+    return busy(async () => {
+      toast($('#thumbFmt').value.toUpperCase(), 'work', 0, null, { title: 'Saving thumbnail…' });
+      const p = new URLSearchParams({ token: D.token, i: S.sel.thumb, fmt: $('#thumbFmt').value });
+      const name = await fetchFile('/api/thumbnail?' + p, 'thumbnail.jpg');
+      toast(name, 'ok', 4000, null, { title: 'Saved' });
+    });
+  }
+
+  /* ---------- tabs ---------- */
+  function setupTabs(){
+    $$('.scope button').forEach(b => b.addEventListener('click', () => setScope(b.dataset.scope)));
+    $$('.seg button').forEach(b => b.addEventListener('click', () => {
+      S.tab = b.dataset.tab;
+      $$('.seg button').forEach(x => { const on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-selected', on); });
+      $$('.pane').forEach(p => p.hidden = p.id !== 'pane-' + S.tab);
+      $('#playhead').style.display = S.tab === 'frame' ? 'block' : 'none';
+      if (S.tab === 'thumb') loadThumbs();
+      syncMain();
+    }));
+    $('#mainDl').addEventListener('click', startDownload);
+    $('#thumbFmt').addEventListener('change', syncMain);
+  }
+  async function loadThumbs(){
+    if (S.thumbs) return;
+    S.thumbs = [];
+    try {
+      const r = await fetch('/api/thumbnails?token=' + encodeURIComponent(D.token));
+      const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Could not list thumbnails.');
+      S.thumbs = d.thumbnails || [];
+    } catch (e) { $('#thumbRows').innerHTML = `<p class="hint">${esc(e.message)}</p>`; S.thumbs = null; return; }
+    if (!S.thumbs.length) { $('#thumbRows').innerHTML = '<p class="hint">This video has no thumbnail to save.</p>'; syncMain(); return; }
+    $('#thumbRows').innerHTML = S.thumbs.map((t, i) => rowHTML({ id: String(t.index), label: t.width + ' × ' + t.height,
+      meta: (t.format || 'jpg').toUpperCase(), size: null, best: i === 0 }, 'image', 'thumb')).join('');
+    bindRows($('#thumbRows'));
+    S.sel.thumb = String(S.thumbs[0].index); syncRows(); syncMain();
+  }
+
+  /* ---------- advanced ---------- */
+  function setupAdvanced(){
+    const CUT_HINT = {
+      fast: 'Cuts on the nearest keyframe with no re-encode, so the clip may start up to ~2 s early. No quality loss.',
+      exact: `Re-encodes on the ${D.encoder} so the clip starts and ends on the exact frame you marked.`
+    };
+    const ER_HINT = {
+      false: "Keeps the site's original codec (often AV1/VP9 on YouTube): smaller files, but many editors show only the audio.",
+      true: 'Picks or converts to H.264 video with AAC audio so it opens in Premiere Pro, DaVinci Resolve, Final Cut and CapCut.'
+    };
+    const sync = () => {
+      $('#cutHint').textContent = CUT_HINT[$('#cut').value];
+      $('#erHint').textContent = ER_HINT[S.editReady];
+      $('#er').setAttribute('aria-checked', S.editReady);
+    };
+    $('#cut').addEventListener('change', sync);
+    const toggle = () => { S.editReady = !S.editReady; sync(); };
+    $('#er').addEventListener('click', toggle);
+    $('#er').addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggle(); } });
+    sync();
+  }
+
+  /* ---------- trim ---------- */
+  let hIn, hOut;
+  const MIN = () => Math.min(0.5, D.duration / 10);
+  function initTrim(){
+    if (S.trimReady || !D.duration) return;
+    S.trimReady = true; S.tin = 0; S.tout = D.duration;
+    syncMeta();
+    $('#scaleEnd').textContent = fmt(D.duration);
+    $('#trimBlock').hidden = !D.canEdit;
+    // filmstrip
+    const tl = $('#tl'); tl.innerHTML = '';
+    const hues = [222, 236, 250, 265, 285, 310, 330, 350, 12, 24, 30, 18];
+    const nFrames = innerWidth < 520 ? 7 : 12;
+    for (let i = 0; i < nFrames; i++) {
+      const f = document.createElement('div'); f.className = 'frame';
+      const h = hues[Math.round(i * (hues.length - 1) / (nFrames - 1))];
+      f.style.background = `linear-gradient(160deg,hsl(${h} 45% 22%),hsl(${(h + 30) % 360} 55% ${38 + (i % 3) * 6}%))`;
+      tl.appendChild(f);
+    }
+    if (video && D.src) fillFilmstrip(nFrames);
+    hIn = $('#hIn'); hOut = $('#hOut');
+    drag(hIn, setIn); drag(hOut, setOut);
+    $('#tlWrap').addEventListener('pointerdown', e => {
+      if (e.target.closest('.handle')) return;
+      const t = posToTime(e.clientX);
+      if (S.tab === 'frame') { setHead(t); return; }
+      const isIn = Math.abs(t - S.tin) < Math.abs(t - S.tout);
+      if (isIn) setIn(t); else setOut(t);
+      syncTrim(); scrub(isIn ? S.tin : S.tout);
+    });
+    bindInput($('#inStart'), setIn); bindInput($('#inEnd'), setOut);
+    $('#resetBtn').addEventListener('click', () => { S.tin = 0; S.tout = D.duration; S.scope = 'full'; $$('.inp').forEach(i => i.classList.remove('bad')); syncTrim(); toast('Clip reset to full length'); });
+    $('#previewBtn').addEventListener('click', () => play(S.tin, S.tout));
+    addEventListener('keydown', e => {
+      if (e.target.closest('input,select,textarea') || e.ctrlKey || e.metaKey || e.altKey) return;
+      const k = e.key.toLowerCase();
+      if (k === 'i' && D.canEdit) { setIn(S.head); syncTrim(); toast('In set at ' + fmt(S.tin)); }
+      if (k === 'o' && D.canEdit) { setOut(S.head); syncTrim(); toast('Out set at ' + fmt(S.tout)); }
+      if (k === ',') stepFrame(-1);
+      if (k === '.') stepFrame(1);
+    });
+    syncTrim();
+  }
+  // Real frames on the strip, grabbed from the same-origin preview stream in a hidden video.
+  function fillFilmstrip(n){
+    const v = document.createElement('video');
+    v.muted = true; v.preload = 'auto';
+    v.src = D.previews.length > 1 ? previewUrl(D.previews.length - 1) : D.src;  // smallest: fastest to seek
+    const frames = $$('#tl .frame'); let i = 0;
+    const c = document.createElement('canvas'); c.width = 160; c.height = 90;
+    const next = () => { if (i >= n) { v.removeAttribute('src'); v.load(); return; } v.currentTime = Math.min(D.duration - 0.1, (i + 0.5) * D.duration / n); };
+    v.addEventListener('seeked', () => {
+      try { c.getContext('2d').drawImage(v, 0, 0, c.width, c.height); frames[i].style.background = `center/cover url(${c.toDataURL('image/jpeg', 0.7)})`; } catch(e) { return; }
+      i++; next();
+    });
+    v.addEventListener('loadedmetadata', next, { once: true });
+  }
+  function syncTrim(fromInputs){
+    const pIn = S.tin / D.duration * 100, pOut = S.tout / D.duration * 100;
+    hIn.style.left = pIn + '%'; hOut.style.left = pOut + '%';
+    $('#range').style.left = pIn + '%'; $('#range').style.width = (pOut - pIn) + '%';
+    $('#shadeL').style.cssText = `left:0;width:${pIn}%`;
+    $('#shadeR').style.cssText = `left:${pOut}%;right:0`;
+    $('#tagIn').textContent = fmt(S.tin); $('#tagOut').textContent = fmt(S.tout);
+    const align = (tag, p) => { tag.style.transform = p > 88 ? 'translateX(calc(-100% + 9px))' : p < 12 ? 'translateX(-9px)' : 'translateX(-50%)'; };
+    align($('#tagIn'), pIn); align($('#tagOut'), pOut);
+    const close = pOut - pIn < 18; $('#tagOut').style.bottom = close ? 'auto' : ''; $('#tagOut').style.top = close ? 'calc(100% + 8px)' : '';
+    hIn.setAttribute('aria-valuetext', fmt(S.tin)); hOut.setAttribute('aria-valuetext', fmt(S.tout));
+    if (!fromInputs) { $('#inStart').value = fmt(S.tin); $('#inEnd').value = fmt(S.tout); }
+    $('#inDur').value = fmt(S.tout - S.tin);
+    $('#selLen').textContent = (S.tout - S.tin).toFixed(2) + 's';
+    refreshSizes(); syncMain();
+  }
+  // Moving a handle means the user wants a clip, so tick "Trimmed clip" for them.
+  function setIn(t){ S.tin = Math.min(Math.max(0, t), S.tout - MIN()); S.scope = 'clip'; }
+  function setOut(t){ S.tout = Math.max(Math.min(D.duration, t), S.tin + MIN()); S.scope = 'clip'; }
+  function posToTime(x){ const r = $('#tl').getBoundingClientRect(); return Math.min(1, Math.max(0, (x - r.left) / r.width)) * D.duration; }
+  function drag(handle, setter){
+    handle.addEventListener('pointerdown', e => {
+      e.preventDefault(); e.stopPropagation(); handle.setPointerCapture(e.pointerId); handle.focus();
+      const at = () => handle === hIn ? S.tin : S.tout;
+      scrub(at());
+      const move = ev => { setter(posToTime(ev.clientX)); syncTrim(); scrub(at()); };
+      const up = () => { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', up); handle.removeEventListener('pointercancel', up); };
+      handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', up); handle.addEventListener('pointercancel', up);
+    });
+    handle.addEventListener('keydown', e => {
+      const step = e.shiftKey ? 10 : 1;
+      const cur = handle === hIn ? S.tin : S.tout;
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); setter(cur - step); syncTrim(); scrub(handle === hIn ? S.tin : S.tout); }
+      if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); setter(cur + step); syncTrim(); scrub(handle === hIn ? S.tin : S.tout); }
+    });
+  }
+  function bindInput(el, setter){
+    const commit = () => {
+      const t = parse(el.value);
+      el.parentElement.classList.toggle('bad', isNaN(t));
+      if (isNaN(t)) { toast('Use m:ss.cc, e.g. 1:24.50', 'error'); return; }
+      setter(t); syncTrim(); scrub(setter === setIn ? S.tin : S.tout);
+    };
+    el.addEventListener('change', commit);
+    el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); commit(); el.blur(); } });
+  }
+
+  /* ---------- player ---------- */
+  let stopAt = null;
+  function setupPlayer(){
+    video = $('#video'); player = $('#player');
+    if (D.thumb) video.poster = D.thumb;
+    if (D.src) { video.src = D.src; player.classList.add('has-src'); setupQuality(); }
+    else if (D.thumb) { player.style.background = `#000 center/contain no-repeat url("${D.thumb.replace(/"/g, '%22')}")`; }
+    video.addEventListener('loadedmetadata', () => {
+      if (!D.duration && isFinite(video.duration) && video.duration > 0) { D.duration = video.duration; initTrim(); }
+      if (!D.width && video.videoWidth) { D.width = video.videoWidth; D.height = video.videoHeight; syncMeta(); }
+    });
+    video.addEventListener('timeupdate', () => {
+      S.head = video.currentTime; $('#pTime').textContent = fmt(S.head);
+      if (D.duration) $('#playhead').style.left = (S.head / D.duration * 100) + '%';
+      $('#frameTc').textContent = fmt(S.head);
+      if (stopAt != null && video.currentTime >= stopAt) { video.pause(); stopAt = null; }
+    });
+    video.addEventListener('seeked', () => { if (scrubTo != null) { const t = scrubTo; scrubTo = null; setHead(t); } });
+    video.addEventListener('play', () => player.classList.add('playing'));
+    video.addEventListener('pause', () => { player.classList.remove('playing'); syncMain(); });
+    video.addEventListener('error', () => { if (D.src) toast("The preview couldn't play here, but downloads still work.", 'wait', 5000); });
+    $('#bigPlay').addEventListener('click', () => play());
+    video.addEventListener('click', () => { if (!video.paused) video.pause(); });
+    $('#fPrev').addEventListener('click', () => stepFrame(-1));
+    $('#fNext').addEventListener('click', () => stepFrame(1));
+    if (!D.src) $('#bigPlay').hidden = true;
+  }
+  // Preview quality menu: lower sizes load and seek faster. Downloads are unaffected.
+  function previewUrl(i){ return D.src + (D.src.includes('?') ? '&' : '?') + 'q=' + i; }
+  function setupQuality(){
+    const sel = $('#pQuality');
+    if (D.previews.length < 2) return;
+    sel.innerHTML = D.previews.map((p, i) => `<option value="${i}">${p.label}${p.sound ? '' : ' · no sound'}</option>`).join('');
+    let saved = null; try { saved = localStorage.getItem('previewQuality'); } catch(e) {}
+    let i = D.previews.findIndex(p => p.label === saved);
+    if (i < 0) i = Math.max(0, D.previews.findIndex(p => p.default));
+    sel.value = i; sel.hidden = false;
+    if (!D.previews[i].default) video.src = previewUrl(i);
+    sel.addEventListener('change', () => {
+      const j = +sel.value, t = video.currentTime, playing = !video.paused;
+      try { localStorage.setItem('previewQuality', D.previews[j].label); } catch(e) {}
+      video.src = previewUrl(j);
+      video.addEventListener('loadedmetadata', () => { video.currentTime = t; if (playing) video.play().catch(() => {}); }, { once: true });
+      toast('Downloads keep the quality you pick on the right.', '', 4000, null,
+            { title: `Preview at ${D.previews[j].label}${D.previews[j].sound ? '' : ' (no sound)'}` });
+    });
+  }
+  function setHead(t){
+    S.head = Math.min(D.duration || t, Math.max(0, t));
+    if (D.duration) $('#playhead').style.left = (S.head / D.duration * 100) + '%';
+    $('#pTime').textContent = fmt(S.head); $('#frameTc').textContent = fmt(S.head);
+    if (D.src && video.paused && Math.abs(video.currentTime - S.head) > 0.01) video.currentTime = S.head;
+    syncMain();
+  }
+  // Show the frame at a trim handle while it moves. Seeks are coalesced: while one is still
+  // loading, only the newest position is kept, so fast drags stay smooth on a streamed preview.
+  let scrubTo = null;
+  function scrub(t){
+    if (!video) return;
+    if (!video.paused) { video.pause(); stopAt = null; }
+    if (!D.src) { setHead(t); return; }
+    if (video.seeking) { scrubTo = t; S.head = t; return; }
+    setHead(t);
+  }
+  function stepFrame(dir){ if (video && !video.paused) video.pause(); setHead(S.head + dir / D.fps); }
+  function play(from, to){
+    if (!D.src) { toast('No preview is available for this video, but downloads still work.'); return; }
+    stopAt = to ?? null; if (from != null) video.currentTime = from; video.play().catch(() => {});
+  }
+
+  /* =========================================================
+     GALLERY
+     ========================================================= */
+  let galToken = null;
+  const mediaUrl = (i, inline) => '/api/media/file?' + new URLSearchParams({ token: galToken, i, ...(inline ? { inline: 1 } : {}) });
+
+  function renderGallery(data, standalone){
+    galToken = data.token;
+    const items = data.media || [];
+    if (standalone) {
+      const [pName, pColor] = SITES[data.site] || [data.site || 'Post', '#5c5c5c'];
+      $('#galSrc').hidden = false;
+      $('#galIc').style.background = pColor;
+      $('#galPlatform').textContent = pName;
+      $('#galTitle').textContent = data.title || 'Post';
+      $('#galMeta').textContent = data.uploader ? 'by ' + data.uploader : '';
+      document.title = (data.title || 'Post') + ' — Video Downloader';
+    }
+    const photos = items.filter(m => m.kind === 'image').length, vids = items.filter(m => m.kind === 'video').length;
+    const parts = []; if (photos) parts.push(photos + (photos > 1 ? ' photos' : ' photo')); if (vids) parts.push(vids + (vids > 1 ? ' videos' : ' video'));
+    $('#galCount').textContent = parts.join(' · ') || items.length + ' items';
+    $('#zipBtn').hidden = items.length < 2;
+    $('#galGrid').innerHTML = items.map(m => {
+      const size = m.width && m.height ? m.width + '×' + m.height : '';
+      let vis;
+      if (m.kind === 'image') vis = `<img src="${mediaUrl(m.index, true)}" alt="Photo ${m.index + 1}" loading="lazy">`;
+      else if (m.kind === 'video' && m.direct) vis = `<video src="${mediaUrl(m.index, true)}#t=0.1" muted preload="metadata" playsinline></video>`;
+      else vis = m.kind === 'audio' ? ICONS.audio : ICONS.video;
+      return `<div class="tile">
+        <div class="tile-vis">${vis}</div>
+        ${m.kind !== 'image' ? `<span class="tile-kind">${m.kind === 'audio' ? 'Audio' : 'Video'}</span>` : ''}
+        <div class="tile-foot"><span>${m.kind === 'image' ? 'Photo' : m.kind === 'audio' ? 'Audio' : 'Video'} ${m.index + 1}<small>${esc((m.ext || '').toUpperCase())}${size ? ' · ' + size : ''}</small></span>
+        <button class="icon-btn white" data-item="${m.index}" data-direct="${m.direct ? 1 : 0}" aria-label="Save item ${m.index + 1}">${ICONS.dl}</button></div>
+      </div>`;
+    }).join('');
+    $$('#galGrid [data-item]').forEach(b => b.addEventListener('click', async () => {
+      b.disabled = true;
+      toast(b.dataset.direct === '1' ? 'Saving…' : 'Preparing the video with sound, this can take a moment…', 'work', 0);
+      try { const name = await fetchFile(mediaUrl(b.dataset.item), 'media'); toast(name, 'ok', 4000, null, { title: 'Saved' }); }
+      catch (e) { toast(e.message, 'error', 10000); }
+      finally { b.disabled = false; }
+    }));
+  }
+  $('#zipBtn').addEventListener('click', async () => {
+    const b = $('#zipBtn'); b.disabled = true;
+    toast('Collecting every file into a ZIP…', 'work', 0);
+    try { const name = await fetchFile('/api/media/zip?token=' + encodeURIComponent(galToken), 'media.zip'); toast(name, 'ok', 4000, null, { title: 'Saved' }); }
+    catch (e) { toast(e.message, 'error', 10000); }
+    finally { b.disabled = false; }
+  });
+
+  // Posts that mix a video with photos: show the gallery under the video workspace.
+  async function loadExtraMedia(token){
+    try {
+      const r = await fetch('/api/media?token=' + encodeURIComponent(token));
+      const d = await r.json(); if (!r.ok) return;
+      const items = d.media || [];
+      if (items.length > 1 || items.some(m => m.kind === 'image')) {
+        renderGallery({ token, media: items }, false);
+        $('#gallery').hidden = false;
+      }
+    } catch(e) { /* the gallery is optional extra content */ }
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+{% extends "page.html" %}
+{% block content %}
+<p class="legal-lead">Please read this Disclaimer before using Video Downloader.</p>
+
+<section>
+  <h2>Personal use only</h2>
+  <p>Video Downloader is intended for saving content you own, content you have permission to download, or content you may legally keep for personal, non-commercial use, such as watching offline, backing up your own uploads, or editing your own videos.</p>
+</section>
+
+<section>
+  <h2>Copyright</h2>
+  <p>We do not host, store or distribute any videos, images or audio. All content is downloaded directly from the original website to your computer at your request, and remains the property of its creators and owners. Downloading or reusing copyrighted material without permission may be illegal in your country. You are fully responsible for making sure your use of downloaded content is lawful.</p>
+</section>
+
+<section>
+  <h2>No affiliation</h2>
+  <p>Video Downloader is not affiliated with, endorsed by or connected to Facebook, Instagram, YouTube, TikTok, X (Twitter), Reddit, LinkedIn, Pinterest or their parent companies. Their names and logos are trademarks of their respective owners and are used only to describe which sites the app supports.</p>
+</section>
+
+<section>
+  <h2>Platform rules</h2>
+  <p>Some websites do not allow downloading in their terms of service. It's your responsibility to check and follow the rules of each site you use. We do not encourage or support breaking any platform's terms, or getting around any access restriction, paywall or technical protection.</p>
+</section>
+
+<section>
+  <h2>Accuracy and availability</h2>
+  <p>The app is provided "as is". Websites change often, so some features may stop working or give unexpected results without notice. We make no guarantees about the quality, completeness or availability of any download.</p>
+</section>
+
+<section>
+  <h2>Limitation of liability</h2>
+  <p>We are not responsible for any loss, damage or legal claim resulting from the use of this app or the content downloaded with it. Use the app at your own risk.</p>
+</section>
+
+<p class="legal-see-also">See also our <a href="{{ url_for('terms_page') }}">Terms of Service</a> and <a href="{{ url_for('privacy_page') }}">Privacy Policy</a>.</p>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "page.html" %}
+{% block content %}
+<p class="legal-lead">Video Downloader is a small, free tool that runs on your own computer and lets you save videos and images from public posts, for your own personal use.</p>
+
+<section>
+  <h2>What it does</h2>
+  <ul>
+    <li>Downloads videos from Facebook, YouTube, Instagram, TikTok, X (Twitter), Reddit, LinkedIn and Pinterest, in any quality the site offers, up to 4K.</li>
+    <li>Saves photos and carousels at their original size, one at a time or all together as a ZIP file.</li>
+    <li>Trims just the part of a video you need, captures single frames as full-resolution images, and saves thumbnails.</li>
+    <li>Saves audio as MP3 or M4A.</li>
+    <li>Can convert videos to H.264 so they open in video editors such as Premiere Pro, DaVinci Resolve and CapCut.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>How it works</h2>
+  <p>The app runs locally on your computer at <code>127.0.0.1</code>. When you paste a link, it fetches the post directly from the site using the open-source tools <a href="https://github.com/yt-dlp/yt-dlp" target="_blank" rel="noopener">yt-dlp</a>, <a href="https://github.com/mikf/gallery-dl" target="_blank" rel="noopener">gallery-dl</a> and <a href="https://ffmpeg.org/" target="_blank" rel="noopener">ffmpeg</a>, then hands the file to your browser's normal download manager. There are no accounts, no ads and no tracking.</p>
+</section>
+
+<section>
+  <h2>Use it responsibly</h2>
+  <p>Please only download content you own, content you have permission to save, or content the law allows you to keep for personal use. Respect the creators who make the videos and photos you enjoy, and follow each site's own rules. See our <a href="{{ url_for('terms_page') }}">Terms of Service</a> and <a href="{{ url_for('disclaimer_page') }}">Disclaimer</a> for details.</p>
+</section>
+
+<section>
+  <h2>Not affiliated with any platform</h2>
+  <p>Video Downloader is an independent project. It is not affiliated with, endorsed by or sponsored by Meta, Google, YouTube, TikTok, X Corp., Reddit, LinkedIn, Microsoft or Pinterest. All product names and trademarks belong to their respective owners.</p>
+</section>
+{% endblock %}
