@@ -38,6 +38,116 @@ Pages: `/` is the landing page (`templates/home.html`), `/download?url=...` is t
 (`templates/download.html`), and `/classic` is the previous single-page interface (`templates/index.html`),
 which also holds the **Login** settings.
 
+## Desktop app (Windows and macOS)
+
+`desktop.py` runs the same app as a desktop program: it starts the server and opens it in its own
+window (Edge, Chrome, Brave or Chromium in app mode), with no tabs or address bar. Downloads appear
+in that window's download list with their size and progress. Closing the window quits the app.
+If none of those browsers is installed (e.g. a Mac with only Safari), it opens in the default
+browser instead and quits by itself after 30 minutes without use.
+
+```bash
+python desktop.py        # run from source, on Windows or macOS
+```
+
+**Windows** — build on Windows:
+
+```bash
+powershell -ExecutionPolicy Bypass -File desktop\build.ps1
+```
+
+You get `dist\Video Downloader\` (the .exe, its files, ffmpeg and Deno) and `dist\Video Downloader.zip`
+to share. Unzip anywhere on a Windows 10/11 PC and run `Video Downloader.exe`; the first time,
+Windows may say "Windows protected your PC": click **More info → Run anyway**.
+
+**macOS** — build on a Mac (PyInstaller can't make a Mac app on Windows):
+
+```bash
+bash desktop/build_mac.sh
+```
+
+You get `dist/Video Downloader.app` and `dist/Video-Downloader-mac-arm64.zip` (Apple Silicon) or
+`-x86_64.zip` (Intel), matching the Mac it was built on. Python, a self-contained ffmpeg and Deno are
+inside, so the other Mac needs nothing installed except Chrome, Edge or Brave for the app window.
+To install: unzip, drag **Video Downloader** into **Applications**, then the first time **right-click
+→ Open → Open** (the app isn't signed by Apple). On macOS 15+, if it still refuses, open
+**System Settings → Privacy & Security** and click **Open Anyway**, or run
+`xattr -dr com.apple.quarantine "/Applications/Video Downloader.app"`.
+
+**No Mac? Let GitHub build it.** `.github/workflows/desktop.yml` builds the Windows zip and both
+Mac zips (Apple Silicon and Intel) on GitHub's machines: push the code, open the repository's
+**Actions** tab → **Build desktop apps** → **Run workflow**, and download the zips from the run's
+**Artifacts**. Pushing a tag like `v1.0.0` also attaches them to a GitHub release.
+
+Where the packaged app keeps its login settings and logs: Windows `%APPDATA%\Video Downloader`,
+macOS `~/Library/Application Support/Video Downloader`. Conversions use the GPU when there is one:
+NVIDIA (NVENC) on Windows, Apple's encoder (VideoToolbox) on a Mac, otherwise the CPU.
+
+## Use it from AI assistants (MCP)
+
+The app is also an [MCP](https://modelcontextprotocol.io) server, so Claude, ChatGPT, Codex, Cursor
+and other assistants can use it. Ask things like *"download the 1080p clip from 1:20 to 1:45 of
+&lt;link&gt;"*, *"get the transcript of &lt;link&gt; and summarize it"* or *"grab the frame at 2:03"*.
+
+| Tool | What it does |
+|---|---|
+| `get_video_info` | Title, length, qualities with sizes, audio options, transcripts (or a post's photos) |
+| `download_video` | MP4, whole or a clip (`start`/`end`), any quality, editor-friendly H.264, frame-exact option |
+| `download_audio` | MP3 or M4A, whole or a part |
+| `get_transcript` | Captions as text, with or without `[m:ss]` times, any listed language, optional .txt |
+| `capture_frame` | Full-resolution PNG/JPG at a time; the assistant also sees the image |
+| `download_thumbnail` | Largest thumbnail, original or JPG/PNG |
+| `download_images` | Every photo/video of a post (Instagram, X, Reddit, Pinterest, LinkedIn) |
+
+Files go to `Downloads\Video Downloader` unless the assistant is given a `folder`. Times can be
+seconds (`83.5`) or `m:ss` (`1:23.5`). The server runs on your computer: no account or API key.
+
+**How to start it** (the assistant starts it for you once it's set up):
+- Packaged app on Windows: `"C:\path\to\Video Downloader\Video Downloader.exe" --mcp` (no Python needed)
+- Packaged app on macOS: `"/Applications/Video Downloader.app/Contents/MacOS/Video Downloader" --mcp`
+- From source: `python mcp_server.py` (needs `pip install -r requirements.txt`)
+
+Below, replace the path with where your `Video Downloader` folder is
+(on the build PC: `F:\Cluade\Softwares\facebook video downloader\dist\Video Downloader`).
+
+The app's own **Connect AI** page (`/connect-ai`) shows these settings with the right path already
+filled in for the computer it runs on, Windows or Mac. On a Mac the command is
+`/Applications/Video Downloader.app/Contents/MacOS/Video Downloader`.
+
+**Claude Desktop** — Settings → Developer → Edit Config (Windows
+`%APPDATA%\Claude\claude_desktop_config.json`, macOS `~/Library/Application Support/Claude/claude_desktop_config.json`),
+add inside `"mcpServers"`, then fully quit and reopen Claude:
+```json
+"video-downloader": {
+  "command": "C:\\path\\to\\Video Downloader\\Video Downloader.exe",
+  "args": ["--mcp"]
+}
+```
+
+**Claude Code**:
+```bash
+claude mcp add video-downloader -- "C:\path\to\Video Downloader\Video Downloader.exe" --mcp
+```
+
+**Codex** (app, CLI and IDE extension share `%USERPROFILE%\.codex\config.toml` on Windows, `~/.codex/config.toml` on macOS):
+```toml
+[mcp_servers.video-downloader]
+command = 'C:\path\to\Video Downloader\Video Downloader.exe'
+args = ["--mcp"]
+tool_timeout_sec = 900   # long downloads; the default is 60 s
+```
+
+**Cursor / VS Code / other MCP apps**: add a stdio server with the same command and `--mcp` argument.
+
+**ChatGPT** only connects to MCP servers on a public `https://` address, so it needs a tunnel:
+1. Run `"Video Downloader.exe" --mcp-http` (serves `http://127.0.0.1:5758/mcp`).
+2. Open a tunnel, e.g. `cloudflared tunnel --url http://127.0.0.1:5758 --http-host-header localhost:5758`.
+3. In ChatGPT: Settings → Apps & Connectors → Advanced → turn on Developer mode → Create, and
+   enter `https://<your-tunnel>.trycloudflare.com/mcp` with no authentication.
+
+Anyone who has the tunnel address can use the tools on your PC while the tunnel runs (it has no
+login), so close it when you're done. Files are saved on the PC running the server, not sent to ChatGPT.
+
 ## What works without logging in
 
 | Site | Videos | Images |

@@ -7,6 +7,7 @@ Downloads run as background jobs so the page can show live progress.
 """
 
 import html as html_lib
+import http.server
 import importlib.util
 import json
 import math
@@ -56,9 +57,16 @@ SHORT_LINK_HOSTS = {"pin.it", "t.co", "lnkd.in", "redd.it", "vm.tiktok.com", "vt
 MEDIA_SITES = {"instagram", "twitter", "reddit", "linkedin", "pinterest", "facebook", "tiktok"}
 HAS_GALLERY_DL = importlib.util.find_spec("gallery_dl") is not None
 
-PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
-SETTINGS_FILE = os.path.join(PROJECT_DIR, "settings.json")
-COOKIES_FILE = os.path.join(PROJECT_DIR, "cookies.txt")
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))  # code, templates, static
+# Login settings and logs. The desktop app keeps them in its own data folder (Windows
+# %APPDATA%\Video Downloader, macOS ~/Library/Application Support/Video Downloader)
+# (the program folder may be read-only); run from source they stay in the project folder.
+DATA_DIR = os.environ.get("VD_DATA_DIR") or PROJECT_DIR
+SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
+COOKIES_FILE = os.path.join(DATA_DIR, "cookies.txt")
+# The packaged desktop app has no "python -m": it runs gallery-dl through itself (desktop.py).
+GALLERY_DL_CMD = ([sys.executable, "--gallery-dl"] if getattr(sys, "frozen", False)
+                  else [sys.executable, "-m", "gallery_dl"])
 COOKIE_BROWSERS = ("firefox", "chrome", "edge", "brave", "opera", "vivaldi", "chromium")
 # Download choices sent by the browser: h<height>, audio, mp3, best, or fid:<format id>.
 FORMAT_KEY = re.compile(r"h\d{2,4}|audio|mp3|best|fid:[\w\-]+")
@@ -75,21 +83,36 @@ def find_ffmpeg() -> str | None:
     env = os.environ.get("FFMPEG_PATH")
     if env and os.path.exists(env):
         return env
+    exe = "ffmpeg.exe" if os.name == "nt" else "ffmpeg"
+    # shipped with the desktop app: next to the .exe (Windows) or inside the .app (macOS)
+    for folder in (os.path.dirname(sys.executable), getattr(sys, "_MEIPASS", ""), PROJECT_DIR):
+        if getattr(sys, "frozen", False) and folder and os.path.isfile(os.path.join(folder, exe)):
+            return os.path.join(folder, exe)
     found = shutil.which("ffmpeg")
     if found:
         return found
     home = os.path.expanduser("~")
-    exe = "ffmpeg.exe" if os.name == "nt" else "ffmpeg"
-    candidates = [
-        os.path.join(home, "bin", exe),
-        os.path.join(home, "ffmpeg", "bin", exe),
-        os.path.join("C:\\", "ffmpeg", "bin", exe),
-        os.path.join(os.environ.get("ProgramFiles", "C:\\Program Files"), "ffmpeg", "bin", exe),
-        os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "WinGet", "Links", exe),
-        os.path.join(home, "scoop", "shims", exe),
-        os.path.join("C:\\", "ProgramData", "chocolatey", "bin", exe),
-    ]
-    return next((p for p in candidates if os.path.isfile(p)), None)
+    if os.name == "nt":
+        candidates = [
+            os.path.join(home, "bin", exe),
+            os.path.join(home, "ffmpeg", "bin", exe),
+            os.path.join("C:\\", "ffmpeg", "bin", exe),
+            os.path.join(os.environ.get("ProgramFiles", "C:\\Program Files"), "ffmpeg", "bin", exe),
+            os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "WinGet", "Links", exe),
+            os.path.join(home, "scoop", "shims", exe),
+            os.path.join("C:\\", "ProgramData", "chocolatey", "bin", exe),
+        ]
+    else:  # macOS (Homebrew on Apple Silicon / Intel, MacPorts) and Linux
+        candidates = ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/opt/local/bin/ffmpeg",
+                      "/usr/bin/ffmpeg", os.path.join(home, "bin", exe)]
+    found = next((p for p in candidates if os.path.isfile(p)), None)
+    if found:
+        return found
+    try:  # last resort: the static ffmpeg that the imageio-ffmpeg package ships (pip install)
+        import imageio_ffmpeg
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:  # noqa: BLE001 - not installed, or no binary for this system
+        return None
 
 
 FFMPEG_PATH = find_ffmpeg()
@@ -356,6 +379,7 @@ def save_session(url: str, info: dict) -> str:
         "thumb_candidates": thumbnail_candidates(info),
         "thumbs": None,  # filled in by /api/thumbnails after probing real sizes
         "transcripts": transcript_tracks(info),
+        "duration": info.get("duration"),
     }
     return token
 
@@ -463,6 +487,65 @@ def disclaimer_page():
                      "Personal-use, copyright and no-affiliation notice for Video Downloader.")
 
 
+def mcp_setup() -> dict:
+    """Copy-paste MCP settings for this copy of the app (the .exe, or Python + mcp_server.py)."""
+    packaged = getattr(sys, "frozen", False)
+    command = sys.executable
+    args = ["--mcp"] if packaged else [os.path.join(PROJECT_DIR, "mcp_server.py")]
+    http_args = ["--mcp-http"] if packaged else [args[0], "--http"]
+    entry = {"command": command, "args": args}
+    quote = lambda s: f'"{s}"' if " " in s else s  # noqa: E731
+    toml_list = "[" + ", ".join(f"'{a}'" for a in args) + "]"
+    return {
+        "packaged": packaged,
+        "os": "mac" if sys.platform == "darwin" else "windows" if os.name == "nt" else "linux",
+        "claude_desktop": json.dumps({"mcpServers": {"video-downloader": entry}}, indent=2),
+        "claude_code": f"claude mcp add video-downloader -- {quote(command)} {' '.join(map(quote, args))}",
+        "codex": (f"[mcp_servers.video-downloader]\ncommand = '{command}'\nargs = {toml_list}\n"
+                  "startup_timeout_sec = 60.0\ntool_timeout_sec = 900.0"),
+        "cursor": json.dumps({"mcpServers": {"video-downloader": entry}}, indent=2),
+        "vscode": json.dumps({"servers": {"video-downloader": {"type": "stdio", **entry}}}, indent=2),
+        "http": " ".join(map(quote, [command, *http_args])),
+        "tunnel": "cloudflared tunnel --url http://127.0.0.1:5758 --http-host-header localhost:5758",
+        "connected": mcp_connected(),
+    }
+
+
+def mcp_connected() -> dict:
+    """Which assistants on this PC already list the video-downloader server."""
+    home = os.path.expanduser("~")
+    if sys.platform == "darwin":
+        claude_dir = os.path.join(home, "Library", "Application Support", "Claude")
+    elif os.name == "nt":
+        claude_dir = os.path.join(os.environ.get("APPDATA", home), "Claude")
+    else:
+        claude_dir = os.path.join(home, ".config", "Claude")
+    files = {
+        "claude_desktop": os.path.join(claude_dir, "claude_desktop_config.json"),
+        "codex": os.path.join(home, ".codex", "config.toml"),
+        "claude_code": os.path.join(home, ".claude.json"),
+        "cursor": os.path.join(home, ".cursor", "mcp.json"),
+    }
+    found = {}
+    for app_name, path in files.items():
+        try:
+            with open(path, encoding="utf-8") as f:
+                text = f.read()
+            found[app_name] = "video-downloader" in text
+        except OSError:
+            found[app_name] = None  # app's settings file not found
+    return found
+
+
+@app.route("/connect-ai")
+@app.route("/mcp-setup")
+def mcp_page():
+    return render_template(
+        "mcp.html", page_title="Connect AI assistants (MCP)",
+        page_description="Use Video Downloader from Claude, ChatGPT, Codex, Cursor and other AI assistants.",
+        last_updated=PAGES_UPDATED, contact_email=CONTACT_EMAIL, mcp=mcp_setup())
+
+
 def expand_short_link(url: str) -> str:
     """Follow redirects of a short link (pin.it) to the real page URL."""
     try:
@@ -517,7 +600,7 @@ def gallery_dl_media(url: str) -> tuple[list[dict], str | None, dict]:
     """List every file gallery-dl finds in a post. Returns (items, error, post meta)."""
     if not HAS_GALLERY_DL:
         return [], "gallery-dl is not installed (pip install gallery-dl).", {}
-    cmd = [sys.executable, "-m", "gallery_dl", "--dump-json", *gallery_cookie_args()]
+    cmd = [*GALLERY_DL_CMD, "--dump-json", *gallery_cookie_args()]
     try:
         r = subprocess.run([*cmd, url], capture_output=True, text=True, timeout=90,
                            encoding="utf-8", errors="replace")
@@ -724,7 +807,7 @@ def tiktok_local(url: str) -> tuple[dict | None, str | None]:
         return None, "TikTok needs gallery-dl: run  pip install gallery-dl"
     folder = os.path.join(DOWNLOAD_ROOT, "tt-" + uuid.uuid4().hex)
     os.makedirs(folder)
-    cmd = [sys.executable, "-m", "gallery_dl", *gallery_cookie_args(), "-D", folder,
+    cmd = [*GALLERY_DL_CMD, *gallery_cookie_args(), "-D", folder,
            "--filename", "{id}_{num}.{extension}", "--write-metadata", url]
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=300, encoding="utf-8", errors="replace")
@@ -770,13 +853,14 @@ def local_video_response(site: str, url: str, local: dict, path: str):
         "frames": [{"url": path, "headers": {}, "width": m["width"], "height": m["height"]}],
         "thumb_candidates": local["covers"], "thumbs": None,
         "local_file": path, "local_info": m, "local_dir": local["folder"], "media": [],
+        "duration": m["duration"],
     }
     return jsonify(
         kind="video", site=site, title=local["title"], thumbnail=(local["covers"] or [None])[0],
         duration=m["duration"], uploader=local["uploader"], url=url, token=token,
         preview=f"/api/preview/{token}", frame_size=f"{m['width']}x{m['height']}" if m["width"] else None,
         fps=m.get("fps") or 30, can_edit=HAS_FFMPEG,
-        exact_encoder=("NVIDIA GPU" if nvenc_available() else "CPU") if HAS_FFMPEG else None,
+        exact_encoder=gpu_label() if HAS_FFMPEG else None,
         media_available=False, options=build_options({"formats": [fmt]}),
     )
 
@@ -888,7 +972,7 @@ def video_info():
         frame_size=f"{best['width']}x{best['height']}" if best.get("width") else None,
         fps=entry.get("fps") or 30,
         can_edit=HAS_FFMPEG,
-        exact_encoder=("NVIDIA GPU" if nvenc_available() else "CPU") if HAS_FFMPEG else None,
+        exact_encoder=gpu_label() if HAS_FFMPEG else None,
         media_available=site in MEDIA_SITES,
         options=build_options(entry),
     )
@@ -1445,6 +1529,35 @@ def frame():
 
 
 _nvenc_ok: bool | None = None
+_vt_ok: bool | None = None
+
+
+def vt_bitrate(width: int) -> str:
+    """Bitrate for Apple's hardware encoder (it has no constant-quality mode on every Mac)."""
+    return "12M" if width <= 1280 else "20M" if width <= 1920 else "35M" if width <= 2560 else "60M"
+
+
+def videotoolbox_available() -> bool:
+    """True on a Mac whose ffmpeg can encode H.264 with Apple's hardware encoder (checked once)."""
+    global _vt_ok
+    if _vt_ok is None:
+        _vt_ok = False
+        if FFMPEG_PATH and sys.platform == "darwin":
+            try:
+                r = subprocess.run(
+                    [FFMPEG_PATH, "-hide_banner", "-loglevel", "error", "-f", "lavfi",
+                     "-i", "testsrc2=size=1280x720:rate=30", "-t", "0.5",
+                     "-c:v", "h264_videotoolbox", "-b:v", vt_bitrate(1280), "-f", "null", "-"],
+                    capture_output=True, timeout=30,
+                )
+                _vt_ok = r.returncode == 0
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+    return _vt_ok
+
+
+def gpu_label() -> str:
+    return "NVIDIA GPU" if nvenc_available() else "Apple GPU" if videotoolbox_available() else "CPU"
 
 
 def nvenc_available() -> bool:
@@ -1484,7 +1597,7 @@ def new_job(**fields) -> dict:
     return job
 
 
-ERROR_LOG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs", "errors.log")
+ERROR_LOG = os.path.join(DATA_DIR, "logs", "errors.log")
 
 
 def log_error(job: dict, exc: BaseException, note: str = ""):
@@ -1549,14 +1662,17 @@ def probe_media(path: str) -> dict:
 
 
 def h264_args(width: int) -> list[str]:
-    """High-quality H.264 settings: NVIDIA GPU when available, else the CPU."""
+    """High-quality H.264 settings: NVIDIA GPU or Apple's encoder when available, else the CPU."""
+    if videotoolbox_available() and width <= 4096:
+        return ["-c:v", "h264_videotoolbox", "-b:v", vt_bitrate(width), "-profile:v", "high",
+                "-pix_fmt", "yuv420p"]
     if nvenc_available() and width <= 4096:
         return ["-c:v", "h264_nvenc", "-preset", "p5", "-tune", "hq",
                 "-rc", "vbr", "-cq", "18", "-b:v", "0", "-pix_fmt", "yuv420p"]
     return ["-c:v", "libx264", "-preset", "veryfast", "-crf", "17", "-pix_fmt", "yuv420p"]
 
 
-def run_ffmpeg(job: dict, cmd: list[str], duration: float, log_path: str):
+def run_ffmpeg(job: dict, cmd: list[str], duration: float, log_path: str, keep_log: bool = False):
     """Run ffmpeg, turning its -progress output into job percent / time left."""
     with open(log_path, "w", encoding="utf-8", errors="replace") as log:
         proc = subprocess.Popen([*cmd[:-1], "-progress", "pipe:1", "-nostats", cmd[-1]],
@@ -1581,7 +1697,8 @@ def run_ffmpeg(job: dict, cmd: list[str], duration: float, log_path: str):
         with open(log_path, encoding="utf-8", errors="replace") as f:
             lines = [l for l in f.read().splitlines() if l.strip()]
         raise RuntimeError(lines[-1] if lines else "ffmpeg failed.")
-    os.remove(log_path)
+    if not keep_log:
+        os.remove(log_path)
 
 
 def make_editor_friendly(job: dict, path: str) -> str:
@@ -1698,14 +1815,8 @@ def local_audio(job: dict, session: dict, key: str):
     job.update(path=out, name=f"{safe_filename(session['title'])}.{ext}")
 
 
-def download_clip(job: dict, url: str, key: str, start: float, end: float, exact: bool,
-                  compat: bool = True, session: dict | None = None):
-    """Cut start-end straight from the source streams with ffmpeg.
-
-    Fast mode copies the original streams (no quality loss, starts at the nearest
-    keyframe). Exact mode re-encodes so the cut lands on the exact frame.
-    """
-    job["phase"] = "Finding streams"
+def resolve_streams(url: str, key: str, compat: bool, session: dict | None) -> tuple[dict, list[dict]]:
+    """The video's info and the stream(s) ffmpeg should read for this quality."""
     if session and session.get("local_file"):
         m = session["local_info"]
         info = {"title": session["title"], "duration": m["duration"]}
@@ -1715,6 +1826,18 @@ def download_clip(job: dict, url: str, key: str, start: float, end: float, exact
         with YoutubeDL(base_opts() | {"format": format_selector(key, compat)}) as ydl:
             info = ydl.extract_info(url, download=False)
         streams = info.get("requested_formats") or [info]
+    return info, streams
+
+
+def download_clip(job: dict, url: str, key: str, start: float, end: float, exact: bool,
+                  compat: bool = True, session: dict | None = None):
+    """Cut start-end straight from the source streams with ffmpeg.
+
+    Fast mode copies the original streams (no quality loss, starts at the nearest
+    keyframe). Exact mode re-encodes so the cut lands on the exact frame.
+    """
+    job["phase"] = "Finding streams"
+    info, streams = resolve_streams(url, key, compat, session)
     vcodecs = [str(s.get("vcodec") or "") for s in streams if has_video(s)]
     acodecs = [str(s.get("acodec") or "") for s in streams if has_audio(s)]
     # Editor mode: a fast (copy) cut must not keep AV1/VP9/Opus, so encode only what needs it.
@@ -1861,6 +1984,77 @@ def ranged(src: dict, start: int, total: int | None):
             break
         if not got and failures == 0:
             break
+
+
+# ---------- Fast local proxy for ffmpeg ----------
+# ffmpeg reads a remote URL over one long connection, which YouTube and other CDNs throttle to
+# roughly playback speed. Handing ffmpeg a local address that fetches the file in 8 MB ranges
+# (see ranged) makes the same read many times faster, seeking included.
+
+PROXY_SOURCES: dict[str, dict] = {}
+_proxy_server = None
+_proxy_lock = threading.Lock()
+
+
+class _RangeProxyHandler(http.server.BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
+    def log_message(self, *args):  # keep the console quiet
+        pass
+
+    def do_GET(self):
+        src = PROXY_SOURCES.get(self.path.strip("/"))
+        if not src:
+            self.send_error(404)
+            return
+        total = src["size"]
+        m = re.match(r"bytes=(\d+)-(\d*)", self.headers.get("Range") or "")
+        start = int(m.group(1)) if m else 0
+        end = min(int(m.group(2)), total - 1) if m and m.group(2) else total - 1
+        if start >= total:
+            self.send_response(416)
+            self.send_header("Content-Range", f"bytes */{total}")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        self.send_response(206 if m else 200)
+        self.send_header("Content-Type", "application/octet-stream")
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Content-Length", str(end - start + 1))
+        if m:
+            self.send_header("Content-Range", f"bytes {start}-{end}/{total}")
+        self.end_headers()
+        chunks = ranged(src, start, end + 1)
+        try:
+            for chunk in chunks:
+                self.wfile.write(chunk)
+        except (ConnectionError, OSError):
+            pass  # ffmpeg seeked elsewhere or finished: stop fetching
+        finally:
+            chunks.close()
+
+
+def proxied(url: str, headers: dict | None = None, size: int | None = None) -> str:
+    """A fast local address for a remote stream (or the URL itself if it's a local file or the
+    size can't be read). Registered sources are dropped after SESSION_TTL."""
+    global _proxy_server
+    if not url.startswith(("http://", "https://")):
+        return url
+    src = {"url": url, "headers": headers or {}}
+    src["size"] = size or remote_size(src)
+    if not src["size"]:
+        return url
+    with _proxy_lock:
+        if _proxy_server is None:
+            _proxy_server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _RangeProxyHandler)
+            _proxy_server.daemon_threads = True
+            threading.Thread(target=_proxy_server.serve_forever, daemon=True).start()
+        now = time.time()
+        for k in [k for k, s in PROXY_SOURCES.items() if now - s["added"] > SESSION_TTL]:
+            PROXY_SOURCES.pop(k, None)
+        sid = uuid.uuid4().hex
+        PROXY_SOURCES[sid] = {**src, "added": now}
+    return f"http://127.0.0.1:{_proxy_server.server_address[1]}/{sid}"
 
 
 def plan_join(info: dict, key: str, compat: bool) -> dict | None:
@@ -2082,6 +2276,8 @@ def start_job():
         return jsonify(error="Trimming needs ffmpeg."), 400
 
     compat = data.get("compat", True) is not False  # editor-friendly H.264 unless turned off
+    # save=true (used by the MCP tools): always make a finished file on disk, never a live stream.
+    save = data.get("save") is True
     title = str(data.get("title") or "")[:200]
     job = new_job(url=url, key=key, clip=clip, expected_name=expected_name(title, key, clip))
 
@@ -2093,6 +2289,10 @@ def start_job():
             args = (download_clip, url, key, clip[0], clip[1], bool(data.get("exact")), compat, session)
         elif key in ("audio", "mp3"):
             args = (local_audio, session, key)
+        elif ready and save:
+            name = f"{safe_filename(session['title'])}{os.path.splitext(session['local_file'])[1]}"
+            job.update(path=session["local_file"], name=name, status="done", phase="Done", percent=100, keep=True)
+            return jsonify(id=job["id"], direct=False, name=name)
         elif ready:
             name = f"{safe_filename(session['title'])}{os.path.splitext(session['local_file'])[1]}"
             job.update(direct_local=session["local_file"], status="ready", name=name)
@@ -2102,8 +2302,8 @@ def start_job():
         threading.Thread(target=run_job, args=(job, *args), daemon=True).start()
         return jsonify(id=job["id"], direct=False, name=job["expected_name"])
 
-    live_clip = clip and not data.get("exact") and data.get("live", True) is not False
-    info = stream_info(url, key, compat) if (not clip or live_clip) else None
+    live_clip = clip and not data.get("exact") and data.get("live", True) is not False and not save
+    info = stream_info(url, key, compat) if ((not clip and not save) or live_clip) else None
     if clip:  # a fast cut streams to the browser while it's made, when the streams allow it
         plan = plan_clip(info, key, compat, *clip) if info else None
         if plan:
@@ -2127,12 +2327,222 @@ def start_job():
     return jsonify(id=job["id"], direct=False, name=job["expected_name"])
 
 
+# ---------- Scene splitting ----------
+
+SCENE_THRESHOLDS = {"high": 0.2, "normal": 0.3, "low": 0.45}  # lower = more scenes
+MIN_SCENE = 1.0  # seconds; shorter scenes are merged into the previous one
+
+
+def scene_source(session: dict) -> dict | None:
+    """A small stream is enough to spot picture changes (previews are 320 px wide): the smallest
+    one that is at least 360p, so there's less to download and decode."""
+    choices = [p for p in session.get("previews") or [] if p.get("url")]
+    sized = sorted(choices, key=lambda p: min(p.get("width") or 0, p.get("height") or 0) or 9999)
+    pick = next((p for p in sized if min(p.get("width") or 0, p.get("height") or 0) >= 360), None)
+    return pick or (sized[0] if sized else None) or session.get("preview") or (session.get("frames") or [None])[0]
+
+
+def detect_scenes(job: dict, session: dict, threshold: float, part: tuple[float, float] | None = None):
+    """Find scene changes with ffmpeg and save one small preview picture per scene.
+    part=(start, end) looks only inside that part (the trimmed clip); the first scene then
+    starts at `start` and the last one ends at `end`."""
+    src = scene_source(session)
+    if not src:
+        raise RuntimeError("No video stream is available for scene detection.")
+    job.update(phase="Opening the video", percent=0)
+    if src.get("path"):
+        location, headers = src["path"], ""
+    else:  # through the fast local proxy (see proxied), so the download isn't throttled
+        location = proxied(src["url"], src.get("headers"))
+        headers = "" if location != src["url"] else \
+            "".join(f"{k}: {v}\r\n" for k, v in (src.get("headers") or {}).items())
+    log = os.path.join(job["dir"], "scenes.log")
+    vf = f"scale=320:-2,select='eq(n,0)+gt(scene,{threshold})',showinfo"
+    offset = part[0] if part else 0.0
+    window = ["-ss", f"{part[0]:.3f}", "-t", f"{part[1] - part[0]:.3f}"] if part else []
+    cmd = [FFMPEG_PATH, "-hide_banner", "-nostdin", "-y",
+           *(["-headers", headers] if headers else []),
+           *window, "-i", location, "-an", "-vf", vf,
+           "-fps_mode", "vfr", "-q:v", "5", os.path.join(job["dir"], "t%04d.jpg")]
+    job.update(phase="Looking for scene changes", percent=0)
+    run_ffmpeg(job, cmd, (part[1] - part[0]) if part else (session.get("duration") or 0), log, keep_log=True)
+    with open(log, encoding="utf-8", errors="replace") as f:
+        text = f.read()
+    # With -ss before -i the times start at 0 again, so shift them back to the video's clock.
+    times = [offset + float(t) for t in re.findall(r"Parsed_showinfo.*?pts_time:\s*(-?[\d.]+)", text)]
+    if part:
+        duration = part[1]
+    else:
+        duration = session.get("duration")
+        if not duration:
+            d = re.search(r"Duration: (\d+):(\d+):([\d.]+)", text)
+            duration = int(d[1]) * 3600 + int(d[2]) * 60 + float(d[3]) if d else 0
+    if not times or not duration:
+        raise RuntimeError("Couldn't read this video to find scenes.")
+    starts = [(offset, 1)]  # (start time, number of its preview picture)
+    for i, t in enumerate(times[1:], start=2):
+        if t - starts[-1][0] >= MIN_SCENE and duration - t >= MIN_SCENE:
+            starts.append((t, i))
+    scenes = []
+    for k, (start, pic) in enumerate(starts):
+        end = starts[k + 1][0] if k + 1 < len(starts) else duration
+        scenes.append({"index": k, "start": round(start, 3), "end": round(end, 3), "thumb": pic})
+    job.update(scenes=scenes, part=list(part) if part else None)
+
+
+SCENE_WORKERS = 4  # scenes cut at the same time (network-bound; NVENC allows several sessions)
+
+
+class SceneJob(dict):
+    """Lets run_ffmpeg report one scene's progress into the whole ZIP job (scenes run in parallel)."""
+    def __init__(self, job: dict, n: int, progress: dict, weights: dict):
+        super().__init__()
+        self.job, self.n, self.progress, self.weights = job, n, progress, weights
+
+    def __getitem__(self, key):
+        return self.job[key] if key == "cancel" else super().__getitem__(key)
+
+    def update(self, *args, **kw):
+        if kw.get("percent") is not None:
+            self.progress[self.n] = kw["percent"] / 100
+            done = sum(self.weights[i] * p for i, p in self.progress.items())
+            self.job.update(percent=round(min(99.9, done / sum(self.weights.values()) * 100), 1))
+
+
+def download_scenes(job: dict, session: dict, picked: list[dict], key: str, exact: bool, compat: bool):
+    """Cut each picked scene from the video and put the clips in one ZIP.
+
+    Remote streams are read through the fast local proxy, and several scenes are cut at once,
+    so the time goes into cutting rather than waiting on throttled connections."""
+    job["phase"] = "Finding streams"
+    info, streams = resolve_streams(session["url"], key, compat, session)
+    vcodecs = [str(s.get("vcodec") or "") for s in streams if has_video(s)]
+    acodecs = [str(s.get("acodec") or "") for s in streams if has_audio(s)]
+    video_copy_ok = not compat or all(c.startswith(("avc1", "h264")) or not c for c in vcodecs)
+    audio_copy_ok = not compat or all(c.startswith(("mp4a", "aac", "mp3")) or not c for c in acodecs)
+    encode_video = exact or not video_copy_ok
+    width = max((s.get("width") or 0) for s in streams)
+    codecs = [*(h264_args(width) if encode_video else ["-c:v", "copy"]),
+              *(["-c:a", "copy"] if (audio_copy_ok and not exact) else ["-c:a", "aac", "-b:a", "192k"]),
+              *([] if encode_video else ["-avoid_negative_ts", "make_zero"]),
+              "-movflags", "+faststart"]
+    title = safe_filename(info.get("title") or session["title"])
+
+    job["phase"] = "Opening the video"
+    inputs = []  # (ffmpeg -headers value or "", location) per stream, shared by every scene
+    for s in streams:
+        hdrs = s.get("http_headers") or info.get("http_headers") or {}
+        location = proxied(s["url"], hdrs, s.get("filesize"))
+        inputs.append(("" if location != s["url"] else "".join(f"{k}: {v}\r\n" for k, v in hdrs.items()),
+                       location))
+
+    lengths = {n: max(0.1, sc["end"] - sc["start"]) for n, sc in enumerate(picked)}
+    progress: dict[int, float] = {}
+    finished = [0]
+    lock = threading.Lock()
+
+    def cut(n: int) -> str:
+        if job["cancel"]:
+            raise DownloadCancelled()
+        start, length = picked[n]["start"], lengths[n]
+        out = os.path.join(job["dir"], f"scene{n}.mp4")
+        cmd = [FFMPEG_PATH, "-hide_banner", "-loglevel", "error", "-nostdin", "-y"]
+        for hdr, location in inputs:
+            if hdr:
+                cmd += ["-headers", hdr]
+            cmd += ["-ss", f"{start:.3f}", "-i", location]
+        cmd += ["-t", f"{length:.3f}"]
+        for i in range(len(inputs)):
+            cmd += ["-map", f"{i}:v:0?", "-map", f"{i}:a:0?"]
+        cmd += [*codecs, out]
+        run_ffmpeg(SceneJob(job, n, progress, lengths), cmd, length, os.path.join(job["dir"], f"ffmpeg{n}.log"))
+        if job["cancel"]:
+            raise DownloadCancelled()
+        if not os.path.exists(out) or not os.path.getsize(out):
+            raise RuntimeError(f"ffmpeg failed to cut scene {picked[n]['index'] + 1}.")
+        with lock:
+            finished[0] += 1
+            job["phase"] = f"Cutting scenes ({finished[0]} of {len(picked)} done)"
+        return out
+
+    job["phase"] = f"Cutting scenes (0 of {len(picked)} done)"
+    zip_path = os.path.join(job["dir"], "scenes.zip")
+    with ThreadPoolExecutor(max_workers=min(SCENE_WORKERS, len(picked))) as pool:
+        futures = [pool.submit(cut, n) for n in range(len(picked))]
+        try:
+            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_STORED) as zf:
+                for n, fut in enumerate(futures):  # add in order as each one is ready
+                    out = fut.result()
+                    start = picked[n]["start"]
+                    zf.write(out, f"{title} - scene {picked[n]['index'] + 1:02d} "
+                                  f"({stamp(start)}-{stamp(start + lengths[n])}).mp4")
+                    os.remove(out)
+        except BaseException:
+            job["cancel"] = True  # stop the other scenes too
+            raise
+    job.update(path=zip_path, name=f"{title} - {len(picked)} scenes.zip")
+
+
+@app.post("/api/scenes")
+def start_scene_detection():
+    data = request.get_json(silent=True) or {}
+    session = SESSIONS.get(str(data.get("token") or ""))
+    if not session:
+        return jsonify(error="Session expired. Fetch the video again."), 404
+    if not HAS_FFMPEG:
+        return jsonify(error="Scene detection needs ffmpeg."), 400
+    threshold = SCENE_THRESHOLDS.get(str(data.get("sensitivity") or "normal"))
+    if threshold is None:
+        return jsonify(error="Invalid sensitivity."), 400
+    part = parse_range(data)  # start/end: only look inside the trimmed part
+    if isinstance(part, str):
+        return jsonify(error=part), 400
+    job = new_job(url=session["url"], key="scenes", clip=None, expected_name="scenes")
+    threading.Thread(target=run_job, args=(job, detect_scenes, session, threshold, part), daemon=True).start()
+    return jsonify(id=job["id"])
+
+
+@app.get("/api/scenes/<job_id>/thumb/<int:n>")
+def scene_thumb(job_id, n):
+    job = JOBS.get(job_id)
+    path = job and os.path.join(job["dir"], f"t{n:04d}.jpg")
+    if not path or job.get("key") != "scenes" or not os.path.exists(path):
+        return "", 404
+    return send_file(path, mimetype="image/jpeg", max_age=3600)
+
+
+@app.post("/api/scenes/zip")
+def start_scene_zip():
+    data = request.get_json(silent=True) or {}
+    session = SESSIONS.get(str(data.get("token") or ""))
+    found = JOBS.get(str(data.get("scenes_job") or ""))
+    if not session or not found or found.get("key") != "scenes" or not found.get("scenes"):
+        return jsonify(error="The scene list expired. Find the scenes again."), 404
+    key = str(data.get("format", "best")).strip()
+    if not FORMAT_KEY.fullmatch(key) or key in ("audio", "mp3"):
+        return jsonify(error="Pick a video quality for scene clips."), 400
+    by_index = {s["index"]: s for s in found["scenes"]}
+    try:
+        picked = [by_index[i] for i in sorted({int(i) for i in data.get("indices") or []})]
+    except (KeyError, ValueError, TypeError):
+        return jsonify(error="Unknown scene."), 400
+    if not picked:
+        return jsonify(error="Select at least one scene."), 400
+    compat = data.get("compat", True) is not False
+    title = safe_filename(session["title"])
+    name = f"{title} - {len(picked)} scenes.zip"
+    job = new_job(url=session["url"], key=key, clip=None, expected_name=name)
+    threading.Thread(target=run_job, args=(job, download_scenes, session, picked, key,
+                                           data.get("exact", True) is not False, compat), daemon=True).start()
+    return jsonify(id=job["id"], direct=False, name=name)
+
+
 @app.get("/api/jobs/<job_id>")
 def job_status(job_id):
     job = JOBS.get(job_id)
     if not job:
         return jsonify(error="Job not found."), 404
-    fields = ("id", "status", "phase", "percent", "speed", "eta", "error", "name", "speed_x", "overflow")
+    fields = ("id", "status", "phase", "percent", "speed", "eta", "error", "name", "speed_x", "overflow", "scenes")
     return jsonify({k: job.get(k) for k in fields})
 
 

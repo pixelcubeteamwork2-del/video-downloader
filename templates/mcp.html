@@ -1,0 +1,179 @@
+{% extends "page.html" %}
+{% block head %}
+<style>
+.mcp-steps { counter-reset: step; list-style: none; padding-left: 0 !important; }
+.mcp-steps > li { counter-increment: step; position: relative; padding-left: 36px; margin-bottom: 12px; }
+.mcp-steps > li::before { content: counter(step); position: absolute; left: 0; top: 2px; width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 12.5px; font-weight: 700; background: var(--text); color: var(--bg, #fff); }
+.mcp-code { position: relative; margin: 10px 0 14px; }
+.mcp-code pre { margin: 0; padding: 14px 16px; padding-right: 84px; border-radius: 12px; overflow-x: auto;
+  background: var(--field); border: 1px solid var(--field-border); font: 12.5px/1.6 var(--mono); color: var(--text); white-space: pre; }
+.mcp-copy { position: absolute; top: 8px; right: 8px; font: 600 12px/1 inherit; padding: 7px 10px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--field-border); background: var(--glass, rgba(127,127,127,.12)); color: var(--text); }
+.mcp-copy:hover { border-color: var(--text-3); }
+.mcp-copy.done { color: #16a34a; border-color: #16a34a; }
+.mcp-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; }
+.mcp-tab { font: 600 13.5px/1 inherit; padding: 9px 14px; border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+  border: 1px solid var(--field-border); background: transparent; color: var(--text-2); }
+.mcp-tab[aria-selected="true"] { background: var(--text); color: var(--bg, #fff); border-color: var(--text); }
+.mcp-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,.25); }
+.mcp-panel[hidden] { display: none; }
+.mcp-panel { padding-top: 6px; }
+.mcp-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px;
+  background: rgba(34,197,94,.12); color: #16a34a; margin-bottom: 8px; }
+.mcp-table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 8px 0 6px; }
+.mcp-table th, .mcp-table td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--glass-border); vertical-align: top; }
+.mcp-table th { color: var(--text); font-weight: 700; }
+.mcp-table td:first-child { white-space: nowrap; }
+.legal .mcp-say { display: grid; gap: 8px; margin: 8px 0; padding: 0; list-style: none; }
+.legal .mcp-say li { padding: 10px 14px; border-radius: 12px; border: 1px solid var(--glass-border); color: var(--text); margin: 0; }
+.mcp-warn { padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(234,179,8,.45); background: rgba(234,179,8,.08); color: var(--text); font-size: 14px; }
+@media (max-width: 640px) { .mcp-table td:first-child { white-space: normal; } }
+</style>
+{% endblock %}
+{% block content %}
+{% set c = mcp.connected %}
+<p class="legal-lead">Let AI assistants like Claude, ChatGPT and Codex use Video Downloader for you. Ask in plain words, and the assistant downloads videos, clips, audio, transcripts and frames straight to your computer.</p>
+<p>This works through <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">MCP</a> (Model Context Protocol), the standard way to give an assistant new tools. It runs on your PC. There's no account or API key, and nothing is uploaded anywhere.</p>
+
+<section>
+  <h2>Try saying</h2>
+  <ul class="mcp-say">
+    <li>“Download this in 1080p: https://www.youtube.com/watch?v=…”</li>
+    <li>“Save the part from 1:20 to 1:45 as a clip I can edit in Premiere.”</li>
+    <li>“Get the transcript of this video and summarize it in 5 bullet points.”</li>
+    <li>“Grab the frame at 2:03 and tell me what's on screen.”</li>
+    <li>“Save all the photos from this Instagram post.”</li>
+  </ul>
+  <p>Files are saved to <code>{% if mcp.os == 'windows' %}Downloads\Video Downloader{% else %}Downloads/Video Downloader{% endif %}</code> unless you ask for another folder.</p>
+</section>
+
+<section>
+  <h2>Connect your assistant</h2>
+  <p>Pick your app. The settings below already contain the right path for
+    {% if mcp.packaged %}this copy of the app{% else %}this project folder (run from Python){% endif %}, so you can copy them as they are.</p>
+
+  <div class="mcp-tabs" role="tablist">
+    {% for key, label in [("claude_desktop", "Claude Desktop"), ("claude_code", "Claude Code"), ("codex", "Codex"), ("chatgpt", "ChatGPT"), ("cursor", "Cursor"), ("vscode", "VS Code")] %}
+    <button class="mcp-tab" role="tab" id="tab-{{ key }}" aria-controls="panel-{{ key }}" aria-selected="{{ 'true' if loop.first else 'false' }}" data-tab="{{ key }}">
+      {% if c.get(key) %}<span class="mcp-dot" title="Connected on this PC"></span>{% endif %}{{ label }}
+    </button>
+    {% endfor %}
+  </div>
+
+  <div class="mcp-panel" id="panel-claude_desktop" role="tabpanel" aria-labelledby="tab-claude_desktop">
+    {% if c.claude_desktop %}<span class="mcp-badge">✓ Already connected on this PC</span>{% endif %}
+    <ol class="mcp-steps">
+      <li>Open Claude Desktop, then go to <strong>Settings → Developer → Edit Config</strong>. This opens <code>claude_desktop_config.json</code>.</li>
+      <li>Paste this in. If the file already has <code>"mcpServers"</code>, add just the <code>"video-downloader"</code> part inside it.
+        <div class="mcp-code"><pre>{{ mcp.claude_desktop }}</pre><button class="mcp-copy">Copy</button></div></li>
+      <li>Fully quit Claude: {% if mcp.os == 'mac' %}press <strong>⌘Q</strong> (or choose <strong>Claude → Quit Claude</strong> in the menu bar){% else %}right-click its icon by the clock and choose <strong>Quit</strong>{% endif %}. Then open it again.</li>
+      <li>In a chat, click the tools button. You should see <strong>video-downloader</strong> with 7 tools.</li>
+    </ol>
+  </div>
+
+  <div class="mcp-panel" id="panel-claude_code" role="tabpanel" aria-labelledby="tab-claude_code" hidden>
+    {% if c.claude_code %}<span class="mcp-badge">✓ Already connected on this PC</span>{% endif %}
+    <ol class="mcp-steps">
+      <li>Run this once in a terminal. Add <code>--scope user</code> after <code>add</code> to use it in every project:
+        <div class="mcp-code"><pre>{{ mcp.claude_code }}</pre><button class="mcp-copy">Copy</button></div></li>
+      <li>Start Claude Code and type <code>/mcp</code>. <strong>video-downloader</strong> should show as connected.</li>
+    </ol>
+  </div>
+
+  <div class="mcp-panel" id="panel-codex" role="tabpanel" aria-labelledby="tab-codex" hidden>
+    {% if c.codex %}<span class="mcp-badge">✓ Already connected on this PC</span>{% endif %}
+    <ol class="mcp-steps">
+      <li>Open <code>{% if mcp.os == 'windows' %}%USERPROFILE%\.codex\config.toml{% else %}~/.codex/config.toml{% endif %}</code>. The Codex app, CLI and IDE extension all share this file.</li>
+      <li>Add this at the end:
+        <div class="mcp-code"><pre>{{ mcp.codex }}</pre><button class="mcp-copy">Copy</button></div>
+        <code>tool_timeout_sec</code> gives long downloads up to 15 minutes. Without it, Codex stops a tool after 60 seconds.</li>
+      <li>Restart Codex, or start a new chat. To check, run <code>codex mcp list</code>.</li>
+    </ol>
+  </div>
+
+  <div class="mcp-panel" id="panel-chatgpt" role="tabpanel" aria-labelledby="tab-chatgpt" hidden>
+    <p>ChatGPT can only connect to MCP servers on a public <code>https://</code> address, so this takes a few more steps and a free tunnel.</p>
+    <ol class="mcp-steps">
+      <li>Start the server in HTTP mode. It serves <code>http://127.0.0.1:5758/mcp</code>:
+        <div class="mcp-code"><pre>{{ mcp.http }}</pre><button class="mcp-copy">Copy</button></div></li>
+      <li>Install <a href="https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/" target="_blank" rel="noopener">cloudflared</a>{% if mcp.os == 'mac' %} (<code>brew install cloudflared</code>){% elif mcp.os == 'windows' %} (<code>winget install Cloudflare.cloudflared</code>){% endif %}, then open a tunnel in a second terminal:
+        <div class="mcp-code"><pre>{{ mcp.tunnel }}</pre><button class="mcp-copy">Copy</button></div>
+        It prints an address like <code>https://something.trycloudflare.com</code>.</li>
+      <li>In ChatGPT, go to <strong>Settings → Apps &amp; Connectors → Advanced</strong> and turn on <strong>Developer mode</strong>. Then click <strong>Create</strong>, enter that address followed by <code>/mcp</code>, and choose <strong>No authentication</strong>.</li>
+      <li>In a chat, turn on the connector from the <strong>+</strong> menu, then ask away.</li>
+    </ol>
+    <p class="mcp-warn">While the tunnel is open, anyone who has its address can use these tools on your PC, because it has no login. Close both windows when you're done. Files are always saved on your PC, not sent to ChatGPT.</p>
+  </div>
+
+  <div class="mcp-panel" id="panel-cursor" role="tabpanel" aria-labelledby="tab-cursor" hidden>
+    {% if c.cursor %}<span class="mcp-badge">✓ Already connected on this PC</span>{% endif %}
+    <ol class="mcp-steps">
+      <li>In Cursor, go to <strong>Settings → MCP → Add new global MCP server</strong>. This opens <code>~/.cursor/mcp.json</code>.</li>
+      <li>Paste this in, or add the <code>"video-downloader"</code> part to the servers already there:
+        <div class="mcp-code"><pre>{{ mcp.cursor }}</pre><button class="mcp-copy">Copy</button></div></li>
+      <li>Save the file. The server should turn green in the MCP settings.</li>
+    </ol>
+  </div>
+
+  <div class="mcp-panel" id="panel-vscode" role="tabpanel" aria-labelledby="tab-vscode" hidden>
+    <ol class="mcp-steps">
+      <li>Open the command palette, choose <strong>MCP: Open User Configuration</strong>, or create <code>.vscode/mcp.json</code> in a project.</li>
+      <li>Paste this in:
+        <div class="mcp-code"><pre>{{ mcp.vscode }}</pre><button class="mcp-copy">Copy</button></div></li>
+      <li>Click <strong>Start</strong> above the server, then use it from Copilot Chat in Agent mode.</li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <h2>What the assistant can do</h2>
+  <table class="mcp-table">
+    <thead><tr><th>Tool</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td><code>get_video_info</code></td><td>Title, length, every quality with its file size, audio options and transcripts, or the photos of a post.</td></tr>
+      <tr><td><code>download_video</code></td><td>MP4 in any quality, whole or as a clip. It can make an editor-friendly H.264 file, with frame-exact cuts as an option.</td></tr>
+      <tr><td><code>download_audio</code></td><td>MP3 or M4A, of the whole video or just a part.</td></tr>
+      <tr><td><code>get_transcript</code></td><td>The captions as text, with or without <code>[m:ss]</code> times, in any language the video has.</td></tr>
+      <tr><td><code>capture_frame</code></td><td>A full-resolution PNG or JPG at any moment. The assistant can also see the picture.</td></tr>
+      <tr><td><code>download_thumbnail</code></td><td>The largest thumbnail, as the original file or as JPG or PNG.</td></tr>
+      <tr><td><code>download_images</code></td><td>Every photo and video of an Instagram, X, Reddit, Pinterest or LinkedIn post.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Good to know</h2>
+  <ul>
+    <li>You don't need to open the app first. The assistant starts the tools when it needs them.</li>
+    <li>If you move the app folder, copy the settings from this page again so the path is right.</li>
+    <li>Logins for private posts (the <strong>Login</strong> settings in the <a href="{{ url_for('classic_page') }}">classic interface</a>) are used by the assistant too.</li>
+    <li>Only download content you own or have permission to save. See the <a href="{{ url_for('terms_page') }}">Terms of Service</a>.</li>
+  </ul>
+</section>
+
+<script>
+(() => {
+  const tabs = [...document.querySelectorAll('.mcp-tab')];
+  const show = key => tabs.forEach(t => {
+    const on = t.dataset.tab === key;
+    t.setAttribute('aria-selected', on);
+    document.getElementById('panel-' + t.dataset.tab).hidden = !on;
+  });
+  tabs.forEach(t => t.addEventListener('click', () => { show(t.dataset.tab); history.replaceState(null, '', '#' + t.dataset.tab); }));
+  const want = location.hash.slice(1);
+  if (tabs.some(t => t.dataset.tab === want)) show(want);
+
+  document.querySelectorAll('.mcp-copy').forEach(b => b.addEventListener('click', async () => {
+    const text = b.previousElementSibling.textContent;
+    try { await navigator.clipboard.writeText(text); }
+    catch (e) {  // older browsers: select and copy
+      const r = document.createRange(); r.selectNodeContents(b.previousElementSibling);
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r); document.execCommand('copy'); s.removeAllRanges();
+    }
+    b.textContent = 'Copied'; b.classList.add('done');
+    setTimeout(() => { b.textContent = 'Copy'; b.classList.remove('done'); }, 1600);
+  }));
+})();
+</script>
+{% endblock %}
