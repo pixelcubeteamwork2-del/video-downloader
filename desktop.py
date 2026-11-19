@@ -237,9 +237,23 @@ def window_open() -> bool:
             return True
     try:
         target = os.readlink(os.path.join(profile, "SingletonLock"))
-        os.kill(int(target.rsplit("-", 1)[1]), 0)  # signal 0 only checks the process exists
-        return True
+        pid = int(target.rsplit("-", 1)[1])
     except (OSError, ValueError, IndexError):
+        return False
+    # The browser we started is our child: once it exits it stays a "zombie" (which still
+    # answers kill(pid, 0)) until we collect it, so collect it first.
+    try:
+        done, _ = os.waitpid(pid, os.WNOHANG)
+        if done == pid:
+            return False
+    except ChildProcessError:
+        pass  # not our child (the browser handed off to another process)
+    except OSError:
+        return False
+    try:
+        os.kill(pid, 0)  # signal 0 only checks the process exists
+        return True
+    except OSError:
         return False
 
 
