@@ -19,6 +19,11 @@ echo "==> Python packages (in build/venv-mac, your system Python is left alone)"
 source build/venv-mac/bin/activate
 python -m pip install --quiet --upgrade pip
 python -m pip install --quiet --upgrade pyinstaller imageio-ffmpeg -r requirements.txt
+# cryptography (used by the AI-assistant tools) must be the ready-made wheel, which carries its
+# own OpenSSL. If pip compiled it here (it does on some Intel Macs), it would link to this
+# Mac's Homebrew OpenSSL, clash with the OpenSSL packed into the app, and crash at start-up.
+python -m pip install --quiet --force-reinstall --no-deps --only-binary=:all: cryptography
+python -c "import cryptography, cryptography.hazmat.bindings._rust as r; print('cryptography', cryptography.__version__, 'wheel ok')"
 
 echo "==> ffmpeg (a self-contained build, so it works on Macs without Homebrew)"
 if [ -n "${FFMPEG_PATH:-}" ]; then
