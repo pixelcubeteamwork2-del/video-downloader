@@ -80,6 +80,78 @@ if IS_WIN:
     subprocess.Popen = _QuietPopen
 
 
+# --- self-test: checks a built app works on this computer (used by the GitHub builds) ---
+def self_test() -> int:
+    """Run the app's main parts without a window and print one line per check.
+    Exit code 0 when everything needed works. Network checks are reported, never fatal."""
+    import json as _json
+    import tempfile
+
+    results, failed = [], []
+
+    def check(name, fn, required=True):
+        try:
+            detail = fn()
+            results.append(f"PASS  {name}: {detail}")
+        except Exception as e:  # noqa: BLE001
+            results.append(f"{'FAIL' if required else 'WARN'}  {name}: {type(e).__name__}: {e}")
+            if required:
+                failed.append(name)
+
+    import app as server
+    client = server.app.test_client()
+
+    def run(cmd, timeout=60):
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or r.stdout).strip()[-300:])
+        lines = (r.stdout or r.stderr).strip().splitlines()
+        return lines[0][:80] if lines else "ok"
+
+    check("ffmpeg found", lambda: server.FFMPEG_PATH or (_ for _ in ()).throw(RuntimeError("not found")))
+    check("ffmpeg runs", lambda: run([server.FFMPEG_PATH, "-hide_banner", "-version"]))
+    check("deno runs", lambda: run([shutil.which("deno") or "deno", "--version"]))
+    check("gallery-dl helper", lambda: run(server.GALLERY_DL_CMD + ["--version"]))
+    for path in ("/", "/download", "/connect-ai", "/classic", "/about"):
+        check(f"page {path}", lambda p=path: f"HTTP {client.get(p).status_code}"
+              if client.get(p).status_code == 200 else (_ for _ in ()).throw(RuntimeError(client.get(p).status_code)))
+    check("api settings", lambda: _json.dumps(client.get("/api/settings").get_json())[:60])
+
+    def encode():
+        out = os.path.join(tempfile.mkdtemp(), "t.mp4")
+        cmd = [server.FFMPEG_PATH, "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
+               "-i", "testsrc2=size=1920x1080:rate=30", "-f", "lavfi", "-i", "sine=frequency=440",
+               "-t", "2", *server.h264_args(1920), "-c:a", "aac", "-shortest", out]
+        run(cmd, timeout=120)
+        return f"{server.gpu_label()} encoder, {os.path.getsize(out) // 1024} KB"
+    check("H.264 encode", encode)
+
+    def pillow():
+        from PIL import Image
+        from io import BytesIO
+        buf = BytesIO()
+        Image.new("RGB", (64, 36), "red").save(buf, "PNG")
+        return f"{len(buf.getvalue())} bytes PNG"
+    check("Pillow", pillow)
+
+    def youtube():  # needs the internet; video sites often block cloud machines, so not fatal
+        r = client.post("/api/info", json={"url": "https://www.youtube.com/watch?v=aqz-KE-bpKQ"})
+        data = r.get_json() or {}
+        if r.status_code != 200:
+            raise RuntimeError(data.get("error", r.status_code))
+        return f"{len(data.get('options') or [])} qualities"
+    check("read a YouTube link", youtube, required=False)
+
+    print(f"Video Downloader self-test on {sys.platform} ({os.uname().machine if hasattr(os, 'uname') else os.environ.get('PROCESSOR_ARCHITECTURE')})")
+    print("\n".join(results))
+    print("RESULT:", "FAILED: " + ", ".join(failed) if failed else "ALL REQUIRED CHECKS PASSED")
+    return 1 if failed else 0
+
+
+if "--self-test" in sys.argv:
+    sys.exit(self_test())
+
+
 # --- MCP mode: AI assistants (Claude, ChatGPT, Codex...) start the .exe with --mcp ---
 if "--mcp" in sys.argv or "--mcp-http" in sys.argv:
     import mcp_server

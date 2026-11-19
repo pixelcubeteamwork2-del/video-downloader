@@ -28,6 +28,11 @@ jobs:
       - name: Rename zip
         shell: pwsh
         run: Move-Item "dist/Video Downloader.zip" "dist/Video-Downloader-windows-x64.zip"
+      - name: Test the app from its zip (as a user would get it)
+        shell: pwsh
+        run: |
+          Expand-Archive "dist/Video-Downloader-windows-x64.zip" -DestinationPath "$env:RUNNER_TEMP/install"
+          python desktop/smoke_test.py "$env:RUNNER_TEMP/install/Video Downloader/Video Downloader.exe"
       - uses: actions/upload-artifact@v4
         with:
           name: Video-Downloader-windows-x64
@@ -53,6 +58,30 @@ jobs:
           deno-version: v2.x
       - name: Build
         run: PYTHON=python bash desktop/build_mac.sh
+      - name: Test the app from its zip (as a user would get it)
+        run: |
+          mkdir -p "$RUNNER_TEMP/Applications"
+          ditto -x -k "dist/Video-Downloader-mac-${{ matrix.arch }}.zip" "$RUNNER_TEMP/Applications"
+          APP="$RUNNER_TEMP/Applications/Video Downloader.app"
+          codesign --verify --deep --strict "$APP" && echo "signature: valid"
+          file "$APP/Contents/MacOS/Video Downloader" "$APP/Contents/Frameworks/ffmpeg" "$APP/Contents/Frameworks/deno" || true
+          build/venv-mac/bin/python desktop/smoke_test.py "$APP/Contents/MacOS/Video Downloader"
+      - name: Launch test (opens the app window in Chrome, then closes it)
+        run: |
+          APP="$RUNNER_TEMP/Applications/Video Downloader.app"
+          "$APP/Contents/MacOS/Video Downloader" > "$RUNNER_TEMP/launch.log" 2>&1 &
+          PID=$!
+          for i in $(seq 1 40); do curl -sf -o /dev/null http://127.0.0.1:5757/ && break; sleep 1; done
+          curl -sf -o /dev/null http://127.0.0.1:5757/download && echo "server: answering on port 5757"
+          PROFILE="$HOME/Library/Application Support/Video Downloader/window"
+          for i in $(seq 1 30); do [ -L "$PROFILE/SingletonLock" ] && break; sleep 1; done
+          ls -la "$PROFILE/SingletonLock" && echo "app window: open"
+          pkill -f -- "--user-data-dir=$PROFILE" || true    # close the app window
+          for i in $(seq 1 20); do kill -0 $PID 2>/dev/null || break; sleep 1; done
+          if kill -0 $PID 2>/dev/null; then
+            echo "FAILED: the app kept running after its window closed"; cat "$RUNNER_TEMP/launch.log"; kill $PID; exit 1
+          fi
+          echo "app quit after its window closed: OK"
       - uses: actions/upload-artifact@v4
         with:
           name: Video-Downloader-mac-${{ matrix.arch }}

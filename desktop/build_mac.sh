@@ -59,6 +59,8 @@ python -m PyInstaller --noconfirm --clean --windowed \
   --collect-submodules uvicorn \
   --collect-submodules gallery_dl \
   --collect-data gallery_dl \
+  --exclude-module imageio_ffmpeg \
+  --exclude-module numpy \
   --distpath dist --workpath build --specpath build \
   desktop.py
 

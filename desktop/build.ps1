@@ -6,6 +6,7 @@
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
+$dist = if ($env:VD_DIST) { $env:VD_DIST } else { "dist" }   # output folder; set VD_DIST to build elsewhere
 
 python -m pip install --quiet --upgrade pyinstaller -r requirements.txt
 
@@ -19,7 +20,9 @@ python -m PyInstaller --noconfirm --clean --windowed `
     --collect-submodules uvicorn `
     --collect-submodules gallery_dl `
     --collect-data gallery_dl `
-    --distpath dist --workpath build --specpath build `
+    --exclude-module imageio_ffmpeg `
+    --exclude-module numpy `
+    --distpath $dist --workpath build --specpath build `
     desktop.py
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed" }
 
@@ -34,7 +37,7 @@ if (-not $ffmpeg) {
     $ffmpeg = (python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())").Trim()
 }
 if ($ffmpeg) {
-    Copy-Item $ffmpeg "dist\Video Downloader\ffmpeg.exe" -Force
+    Copy-Item $ffmpeg "$dist\Video Downloader\ffmpeg.exe" -Force
     Write-Host "Included ffmpeg from $ffmpeg"
 } else {
     Write-Warning "ffmpeg not found: the app will look for it on the PC it runs on."
@@ -49,14 +52,14 @@ if (-not $deno) {
     $deno = "$root\build\deno\deno.exe"
 }
 if ($deno) {
-    Copy-Item $deno "dist\Video Downloader\deno.exe" -Force
+    Copy-Item $deno "$dist\Video Downloader\deno.exe" -Force
     Write-Host "Included deno from $deno"
 } else {
     Write-Warning "deno not found: some YouTube qualities may be missing (winget install DenoLand.Deno)."
 }
 
 # One zip to share: unzip anywhere on another Windows 10/11 PC and run Video Downloader.exe.
-Remove-Item "dist\Video Downloader.zip" -ErrorAction SilentlyContinue
-tar -a -c -f "dist\Video Downloader.zip" -C dist "Video Downloader"
-Write-Host "Zip: $root\dist\Video Downloader.zip"
-Write-Host "Built:$root\dist\Video Downloader\Video Downloader.exe"
+Remove-Item "$dist\Video Downloader.zip" -ErrorAction SilentlyContinue
+tar -a -c -f "$dist\Video Downloader.zip" -C $dist "Video Downloader"
+Write-Host "Zip: $root\$dist\Video Downloader.zip"
+Write-Host "Built: $root\$dist\Video Downloader\Video Downloader.exe"
