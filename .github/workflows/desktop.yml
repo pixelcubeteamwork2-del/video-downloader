@@ -82,10 +82,22 @@ jobs:
             echo "FAILED: the app kept running after its window closed"; cat "$RUNNER_TEMP/launch.log"; kill $PID; exit 1
           fi
           echo "app quit after its window closed: OK"
+      - name: Test the .dmg (open it and run the app from it)
+        run: |
+          DMG="dist/Video-Downloader-mac-${{ matrix.arch }}.dmg"
+          hdiutil verify "$DMG"
+          MNT=$(hdiutil attach -nobrowse -readonly "$DMG" | awk -F'\t' '/\/Volumes\//{print $NF}')
+          echo "mounted at: $MNT"; ls -la "$MNT"
+          test -L "$MNT/Applications" && echo "Applications shortcut: OK"
+          codesign --verify --deep --strict "$MNT/Video Downloader.app" && echo "signature: valid"
+          "$MNT/Video Downloader.app/Contents/MacOS/Video Downloader" --self-test
+          hdiutil detach "$MNT"
       - uses: actions/upload-artifact@v4
         with:
           name: Video-Downloader-mac-${{ matrix.arch }}
-          path: dist/Video-Downloader-mac-${{ matrix.arch }}.zip
+          path: |
+            dist/Video-Downloader-mac-${{ matrix.arch }}.dmg
+            dist/Video-Downloader-mac-${{ matrix.arch }}.zip
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -98,4 +110,6 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          files: out/*.zip
+          files: |
+            out/*.zip
+            out/*.dmg

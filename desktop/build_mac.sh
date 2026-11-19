@@ -75,8 +75,19 @@ ZIP="dist/Video-Downloader-mac-$ARCH.zip"
 rm -f "$ZIP"
 ditto -c -k --keepParent "$APP" "$ZIP"   # ditto keeps the app's permissions and signature
 
+# A .dmg disk image, the usual way to share a Mac app: opening it shows the app next to an
+# Applications shortcut, so installing is one drag.
+DMG="dist/Video-Downloader-mac-$ARCH.dmg"
+STAGE="build/dmg"
+rm -rf "$STAGE" "$DMG"
+mkdir -p "$STAGE"
+ditto "$APP" "$STAGE/Video Downloader.app"
+ln -s /Applications "$STAGE/Applications"
+hdiutil create -volname "Video Downloader" -srcfolder "$STAGE" -fs HFS+ -format UDZO -ov "$DMG"
+
 echo
 echo "Built: $ROOT/$APP"
 echo "Zip:   $ROOT/$ZIP"
+echo "DMG:   $ROOT/$DMG"
 echo "Install: unzip, drag 'Video Downloader' into Applications, then right-click it > Open the first time."
 echo "AI assistants (MCP): \"/Applications/Video Downloader.app/Contents/MacOS/Video Downloader\" --mcp"
