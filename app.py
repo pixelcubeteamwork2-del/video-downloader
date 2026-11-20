@@ -39,6 +39,20 @@ from yt_dlp.utils import DownloadCancelled, DownloadError
 
 app = Flask(__name__)
 
+# Secure (HTTPS) connections need a list of trusted certificate authorities. On macOS (and in the
+# packaged app) Python doesn't use the system's list, so every urllib request (preview, fast
+# downloads, transcripts, thumbnails, scene finding) failed with CERTIFICATE_VERIFY_FAILED.
+# Point Python at certifi's list, unless the user already set their own. Windows keeps using
+# its own certificate store.
+if sys.platform != "win32":
+    try:
+        import certifi
+
+        os.environ.setdefault("SSL_CERT_FILE", certifi.where())
+        os.environ.setdefault("REQUESTS_CA_BUNDLE", certifi.where())
+    except ImportError:
+        pass
+
 SUPPORTED_SITES = {
     "facebook": ("facebook.com", "fb.watch", "fb.com"),
     "youtube": ("youtube.com", "youtu.be", "youtube-nocookie.com"),

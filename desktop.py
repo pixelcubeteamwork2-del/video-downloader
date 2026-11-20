@@ -134,6 +134,16 @@ def self_test() -> int:
         return f"{len(buf.getvalue())} bytes PNG"
     check("Pillow", pillow)
 
+    def https():  # the app's own downloader must be able to check website certificates
+        import urllib.request
+        with urllib.request.urlopen("https://www.google.com/robots.txt", timeout=30) as r:
+            r.read(64)
+        url = server.proxied("https://www.google.com/robots.txt")  # the fast downloader's first step
+        if not url.startswith("http://127.0.0.1"):
+            raise RuntimeError("the fast downloader couldn't read the file size")
+        return "certificates OK, fast downloader OK"
+    check("secure connections (HTTPS)", https)
+
     def youtube():  # needs the internet; video sites often block cloud machines, so not fatal
         r = client.post("/api/info", json={"url": "https://www.youtube.com/watch?v=aqz-KE-bpKQ"})
         data = r.get_json() or {}
